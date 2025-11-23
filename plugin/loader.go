@@ -1,9 +1,5 @@
 package plugin
 
-import (
-	"fmt"
-)
-
 // Loader handles loading and managing plugins
 type Loader struct {
 	plugins []*Plugin
@@ -22,7 +18,7 @@ func NewLoader(plugins []*Plugin) (*Loader, error) {
 func (l *Loader) Load(plugins []*Plugin) error {
 
 	l.plugins = plugins
-	fmt.Printf("Loaded %d plugin(s) from hardcoded registry\n", len(l.plugins))
+	// fmt.Printf("Loaded %d plugin(s) from hardcoded registry\n", len(l.plugins))
 	return nil
 }
 
