@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"echo/cert"
-	"echo/plugin"
+	"github.com/ltaoo/echo/cert"
+	"github.com/ltaoo/echo/plugin"
 )
 
 // ConnectHandler handles CONNECT requests and MITM

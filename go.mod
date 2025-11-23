@@ -1,4 +1,4 @@
-module echo
+module github.com/ltaoo/echo
 
 go 1.24.6
 

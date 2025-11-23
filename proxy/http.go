@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"echo/plugin"
+	"github.com/ltaoo/echo/plugin"
 )
 
 // HTTPHandler handles standard HTTP proxy requests

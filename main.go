@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"echo/cert"
-	"echo/plugin"
-	"echo/proxy"
+	"github.com/ltaoo/echo/cert"
+	"github.com/ltaoo/echo/plugin"
+	"github.com/ltaoo/echo/proxy"
 )
 
 const (
@@ -76,7 +76,7 @@ func main() {
 		Handler: mainHandler,
 	}
 
-	log.Printf("Echo Proxy (Go) listening on port %s", PORT)
+	log.Printf("echo Proxy (Go) listening on port %s", PORT)
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}

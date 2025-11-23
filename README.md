@@ -1,4 +1,4 @@
-# Mini Whistle (Go)
+# Echo
 
 A simplest implementation of a proxy server in Go, inspired by [Whistle](https://github.com/avwo/whistle).
 

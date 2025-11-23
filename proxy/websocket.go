@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strings"
 
-	"echo/plugin"
+	"github.com/ltaoo/echo/plugin"
 )
 
 // WebSocketHandler handles WebSocket upgrades
