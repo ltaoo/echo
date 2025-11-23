@@ -7,8 +7,6 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ltaoo/echo/plugin"
@@ -61,12 +59,17 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Check for plugin match
 	matchedPlugin := h.PluginLoader.MatchPlugin(hostname)
+
+	// Create Plugin Context
+	ctx := &plugin.Context{Req: r}
+
 	if matchedPlugin != nil {
 		log.Printf("[HTTP] Plugin matched for %s", hostname)
 
 		// Call OnRequest hook
 		if matchedPlugin.OnRequest != nil {
-			mockResp := matchedPlugin.OnRequest(r, path)
+			matchedPlugin.OnRequest(ctx)
+			mockResp := ctx.GetMockResponse()
 			if mockResp != nil {
 				log.Printf("[PLUGIN] Returning direct response for %s", path)
 				h.sendMockResponse(w, mockResp)
@@ -125,44 +128,11 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	// Handle OnResponse hook
-	// Skip binary files to avoid corruption
-	contentType := resp.Header.Get("Content-Type")
-	isBinary := strings.HasPrefix(contentType, "video/") ||
-		strings.HasPrefix(contentType, "image/") ||
-		strings.HasPrefix(contentType, "audio/") ||
-		contentType == "application/octet-stream"
-
-	if matchedPlugin != nil && matchedPlugin.OnResponse != nil && !isBinary {
-		// Decompress body if needed
-		reader, err := DecompressBody(resp)
-		if err != nil {
-			log.Printf("[Decompress Error] %v", err)
-			// Fallback to raw body
-			reader = resp.Body
-		}
-
-		bodyBytes, err := io.ReadAll(reader)
-		if err != nil {
-			log.Printf("[Read Body Error] %v", err)
-			http.Error(w, err.Error(), http.StatusBadGateway)
-			return
-		}
-		reader.Close()
-
-		bodyStr := string(bodyBytes)
-		modifiedBody := matchedPlugin.OnResponse(resp, bodyStr, r)
-
-		// Update headers
-		DelHopHeaders(resp.Header)
-		CopyHeader(w.Header(), resp.Header)
-
-		// Remove content-encoding/length as we modified body
-		w.Header().Del("Content-Encoding")
-		w.Header().Set("Content-Length", strconv.Itoa(len(modifiedBody)))
-
-		w.WriteHeader(resp.StatusCode)
-		w.Write([]byte(modifiedBody))
-		return
+	if matchedPlugin != nil && matchedPlugin.OnResponse != nil {
+		ctx.Res = resp
+		matchedPlugin.OnResponse(ctx)
+		// ctx.Res might be modified (body/headers)
+		// If body was modified/read, ctx.Res.Body is updated/restored.
 	}
 
 	// Copy response headers

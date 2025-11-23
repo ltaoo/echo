@@ -1,8 +1,15 @@
 package plugin
 
 import (
+	"bytes"
+	"compress/flate"
+	"compress/gzip"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
+
+	"github.com/andybalholm/brotli"
 )
 
 // Plugin represents a forwarding rule configuration
@@ -12,8 +19,132 @@ type Plugin struct {
 	MockResponse *MockResponse
 
 	// Hooks
-	OnRequest  func(req *http.Request, path string) *MockResponse
-	OnResponse func(res *http.Response, body string, req *http.Request) string
+	OnRequest  func(ctx *Context)
+	OnResponse func(ctx *Context)
+}
+
+// Context provides access to the request and response for plugins
+type Context struct {
+	Req *http.Request
+	Res *http.Response // Nil in OnRequest
+
+	mockResp *MockResponse
+}
+
+// Mock sets a mock response to be returned immediately
+func (c *Context) Mock(status int, headers map[string]string, body interface{}) {
+	c.mockResp = &MockResponse{
+		StatusCode: status,
+		Headers:    headers,
+		Body:       body,
+	}
+}
+
+// GetMockResponse returns the set mock response
+func (c *Context) GetMockResponse() *MockResponse {
+	return c.mockResp
+}
+
+// SetRequestHeader sets a header on the request
+func (c *Context) SetRequestHeader(key, value string) {
+	if c.Req != nil {
+		c.Req.Header.Set(key, value)
+	}
+}
+
+// DelRequestHeader deletes a header from the request
+func (c *Context) DelRequestHeader(key string) {
+	if c.Req != nil {
+		c.Req.Header.Del(key)
+	}
+}
+
+// GetRequestHeader gets a header from the request
+func (c *Context) GetRequestHeader(key string) string {
+	if c.Req != nil {
+		return c.Req.Header.Get(key)
+	}
+	return ""
+}
+
+// SetResponseHeader sets a header on the response
+func (c *Context) SetResponseHeader(key, value string) {
+	if c.Res != nil {
+		c.Res.Header.Set(key, value)
+	}
+}
+
+// DelResponseHeader deletes a header from the response
+func (c *Context) DelResponseHeader(key string) {
+	if c.Res != nil {
+		c.Res.Header.Del(key)
+	}
+}
+
+// GetResponseHeader gets a header from the response
+func (c *Context) GetResponseHeader(key string) string {
+	if c.Res != nil {
+		return c.Res.Header.Get(key)
+	}
+	return ""
+}
+
+// GetResponseBody reads and returns the response body as a string
+// It automatically decompresses the body if needed and updates the response
+// to be uncompressed for subsequent reads.
+func (c *Context) GetResponseBody() (string, error) {
+	if c.Res == nil || c.Res.Body == nil {
+		return "", nil
+	}
+
+	// Decompress if needed
+	reader, err := DecompressBody(c.Res)
+	if err != nil {
+		return "", err
+	}
+
+	// Read body
+	bodyBytes, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+	reader.Close()
+
+	// Restore body as uncompressed
+	c.Res.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+
+	// Update headers to reflect uncompressed state
+	c.Res.ContentLength = int64(len(bodyBytes))
+	c.Res.Header.Set("Content-Length", fmt.Sprintf("%d", len(bodyBytes)))
+	c.Res.Header.Del("Content-Encoding")
+
+	return string(bodyBytes), nil
+}
+
+// SetResponseBody sets the response body
+func (c *Context) SetResponseBody(body string) {
+	if c.Res != nil {
+		c.Res.Body = io.NopCloser(strings.NewReader(body))
+		c.Res.ContentLength = int64(len(body))
+		c.Res.Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
+		c.Res.Header.Del("Content-Encoding") // Remove encoding if we modified body
+	}
+}
+
+// DecompressBody returns a reader that decompresses the response body if needed
+func DecompressBody(res *http.Response) (io.ReadCloser, error) {
+	encoding := res.Header.Get("Content-Encoding")
+
+	switch encoding {
+	case "gzip":
+		return gzip.NewReader(res.Body)
+	case "deflate":
+		return flate.NewReader(res.Body), nil
+	case "br":
+		return io.NopCloser(brotli.NewReader(res.Body)), nil
+	default:
+		return res.Body, nil
+	}
 }
 
 // TargetConfig defines where to forward requests
