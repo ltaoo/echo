@@ -5,17 +5,11 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"os"
 )
 
 // LoadRootCA loads the root CA certificate and private key from PEM files
-func LoadRootCA(keyPath, certPath string) (*x509.Certificate, crypto.PrivateKey, error) {
+func LoadRootCA(certPEM, keyPEM []byte) (*x509.Certificate, crypto.PrivateKey, error) {
 	// Load certificate
-	certPEM, err := os.ReadFile(certPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read certificate file: %w", err)
-	}
-
 	block, _ := pem.Decode(certPEM)
 	if block == nil {
 		return nil, nil, fmt.Errorf("failed to decode certificate PEM")
@@ -24,12 +18,6 @@ func LoadRootCA(keyPath, certPath string) (*x509.Certificate, crypto.PrivateKey,
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse certificate: %w", err)
-	}
-
-	// Load private key
-	keyPEM, err := os.ReadFile(keyPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read private key file: %w", err)
 	}
 
 	keyBlock, _ := pem.Decode(keyPEM)

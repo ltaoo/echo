@@ -1,46 +1,39 @@
-package main
+package echo
 
 import (
-	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/ltaoo/echo/cert"
 	"github.com/ltaoo/echo/plugin"
 	"github.com/ltaoo/echo/proxy"
 )
 
-const (
-	PORT = "127.0.0.1:8888"
-)
+type Echo struct {
+	connectHandler *proxy.ConnectHandler
+	wsHandler      *proxy.WebSocketHandler
+	httpHandler    *proxy.HTTPHandler
+	pluginLoader   *plugin.Loader
+}
 
-func main() {
-	// 1. Load Root CA
-	// Assuming certs are in the current directory or a 'certs' subdirectory
-	// You might need to adjust paths based on where you run the binary
-	cwd, _ := os.Getwd()
-	certDir := filepath.Join(cwd, "certs")
-	keyPath := filepath.Join(certDir, "private.key")
-	certPath := filepath.Join(certDir, "certificate.crt")
-
-	log.Printf("Loading Root CA from %s", certDir)
-	caCert, caKey, err := cert.LoadRootCA(keyPath, certPath)
+func NewEcho(certFile []byte, certKey []byte) (*Echo, error) {
+	caCert, caKey, err := cert.LoadRootCA(certFile, certKey)
 	if err != nil {
-		log.Fatalf("Failed to load Root CA: %v\nPlease ensure 'certs/private.key' and 'certs/certificate.crt' exist.", err)
+		// log.Fatalf("Failed to load Root CA: %v\nPlease ensure 'certs/private.key' and 'certs/certificate.crt' exist.", err)
+		return nil, err
 	}
-	log.Println("Root CA loaded successfully")
+	// log.Println("Root CA loaded successfully")
 
 	// 2. Initialize Certificate Manager
 	certManager, err := cert.NewManager(caCert, caKey)
 	if err != nil {
-		log.Fatalf("Failed to initialize certificate manager: %v", err)
+		// log.Fatalf("Failed to initialize certificate manager: %v", err)
+		return nil, err
 	}
-
-	plugins := []plugin.Plugin{}
+	plugins := []*plugin.Plugin{}
 	pluginLoader, err := plugin.NewLoader(plugins)
 	if err != nil {
-		log.Printf("Warning: Failed to load plugins: %v", err)
+		// log.Printf("Warning: Failed to load plugins: %v", err)
+		return nil, err
 	}
 
 	// 4. Initialize Proxy Handlers
@@ -52,32 +45,55 @@ func main() {
 	}
 	wsHandler := &proxy.WebSocketHandler{PluginLoader: pluginLoader}
 
-	// 5. Create Main Handler
-	mainHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Handle CONNECT (HTTPS Tunneling)
-		if r.Method == http.MethodConnect {
-			connectHandler.HandleTunnel(w, r)
-			return
-		}
-
-		// Handle WebSocket Upgrades (HTTP)
-		if proxy.IsWebSocketRequest(r) {
-			wsHandler.HandleUpgrade(w, r, false) // false = not secure (ws://)
-			return
-		}
-
-		// Handle Standard HTTP
-		httpHandler.HandleRequest(w, r)
-	})
-
-	// 6. Start Server
-	server := &http.Server{
-		Addr:    PORT,
-		Handler: mainHandler,
-	}
-
-	log.Printf("echo Proxy (Go) listening on port %s", PORT)
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatal(err)
-	}
+	return &Echo{
+		connectHandler: connectHandler,
+		wsHandler:      wsHandler,
+		httpHandler:    httpHandler,
+		pluginLoader:   pluginLoader,
+	}, nil
 }
+
+func (e *Echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Handle CONNECT (HTTPS Tunneling)
+	if r.Method == http.MethodConnect {
+		e.connectHandler.HandleTunnel(w, r)
+		return
+	}
+	// Handle WebSocket Upgrades (HTTP)
+	if proxy.IsWebSocketRequest(r) {
+		e.wsHandler.HandleUpgrade(w, r, false) // false = not secure (ws://)
+		return
+	}
+	// Handle Standard HTTP
+	e.httpHandler.HandleRequest(w, r)
+}
+func (e *Echo) AddPlugin(plugin *plugin.Plugin) {
+	e.pluginLoader.AddPlugin(plugin)
+}
+
+// func main() {
+// 	// 1. Load Root CA
+// 	// Assuming certs are in the current directory or a 'certs' subdirectory
+// 	// You might need to adjust paths based on where you run the binary
+// 	cwd, _ := os.Getwd()
+// 	certDir := filepath.Join(cwd, "certs")
+// 	keyPath := filepath.Join(certDir, "private.key")
+// 	certPath := filepath.Join(certDir, "certificate.crt")
+
+// 	// 5. Create Main Handler
+// 	mainHandler := http.HandlerFunc(func() {
+
+// 	})
+
+// 	// 6. Start Server
+// 	server := &http.Server{
+// 		Addr: PORT,
+// 		Handler: func(w http.ResponseWriter, r *http.Request) {
+// 		},
+// 	}
+
+// 	log.Printf("echo Proxy (Go) listening on port %s", PORT)
+// 	if err := server.ListenAndServe(); err != nil {
+// 		log.Fatal(err)
+// 	}
+// }
