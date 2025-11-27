@@ -15,7 +15,9 @@ func isMatch(hostname, pattern string) bool {
 	if hostname == pattern {
 		return true
 	}
-
+	if pattern == "*" {
+		return true
+	}
 	// Wildcard pattern
 	if strings.Contains(pattern, "*") {
 		regexPattern := "^" + strings.ReplaceAll(regexp.QuoteMeta(pattern), "\\*", ".*") + "$"
