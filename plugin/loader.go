@@ -1,5 +1,11 @@
 package plugin
 
+import (
+	"net"
+	"net/http"
+	"strings"
+)
+
 // Loader handles loading and managing plugins
 type Loader struct {
 	plugins []*Plugin
@@ -39,4 +45,99 @@ func (l *Loader) MatchPlugin(hostname string) *Plugin {
 		}
 	}
 	return nil
+}
+
+// MatchPlugins returns all plugins that match the given hostname, in order
+func (l *Loader) MatchPlugins(hostname string) []*Plugin {
+	var matches []*Plugin
+	for i := range l.plugins {
+		if isMatch(hostname, l.plugins[i].Match) {
+			matches = append(matches, l.plugins[i])
+		}
+	}
+	return matches
+}
+
+func (l *Loader) MatchPluginForRequest(r *http.Request) *Plugin {
+	if r == nil {
+		return nil
+	}
+	scheme := r.URL.Scheme
+	if scheme == "" {
+		scheme = "http"
+	}
+	host := r.URL.Host
+	if host == "" {
+		host = r.Host
+	}
+	fullURL := scheme + "://" + host + r.URL.Path
+	if r.URL.RawQuery != "" {
+		fullURL += "?" + r.URL.RawQuery
+	}
+
+	hostname := r.URL.Hostname()
+	if hostname == "" {
+		hostname = r.Host
+		if h, _, err := net.SplitHostPort(hostname); err == nil {
+			hostname = h
+		}
+	}
+
+	for i := range l.plugins {
+		pattern := l.plugins[i].Match
+		if containsScheme(pattern) || strings.Contains(pattern, "/") {
+			if isMatch(fullURL, pattern) {
+				return l.plugins[i]
+			}
+		} else if isMatch(hostname, pattern) {
+			return l.plugins[i]
+		}
+	}
+	return nil
+}
+
+// MatchPluginsForRequest returns all plugins that match the given request URL/host, in order
+func (l *Loader) MatchPluginsForRequest(r *http.Request) []*Plugin {
+	if r == nil {
+		return nil
+	}
+	scheme := r.URL.Scheme
+	if scheme == "" {
+		scheme = "http"
+	}
+	host := r.URL.Host
+	if host == "" {
+		host = r.Host
+	}
+	fullURL := scheme + "://" + host + r.URL.Path
+	if r.URL.RawQuery != "" {
+		fullURL += "?" + r.URL.RawQuery
+	}
+
+	hostname := r.URL.Hostname()
+	if hostname == "" {
+		hostname = r.Host
+		if h, _, err := net.SplitHostPort(hostname); err == nil {
+			hostname = h
+		}
+	}
+
+	var matches []*Plugin
+	for i := range l.plugins {
+		pattern := l.plugins[i].Match
+		if containsScheme(pattern) || strings.Contains(pattern, "/") {
+			if isMatch(fullURL, pattern) {
+				matches = append(matches, l.plugins[i])
+			}
+		} else if isMatch(hostname, pattern) {
+			matches = append(matches, l.plugins[i])
+		}
+	}
+	return matches
+}
+func containsScheme(s string) bool {
+	return strings.HasPrefix(s, "http://") ||
+		strings.HasPrefix(s, "https://") ||
+		strings.HasPrefix(s, "ws://") ||
+		strings.HasPrefix(s, "wss://")
 }

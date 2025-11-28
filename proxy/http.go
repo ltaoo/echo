@@ -57,35 +57,35 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[HTTP] %s %s (Host: %s)", r.Method, r.URL.String(), hostname)
 
-	// Check for plugin match
-	matchedPlugin := h.PluginLoader.MatchPlugin(hostname)
+	// Find all matching plugins
+	matched_plugins := h.PluginLoader.MatchPluginsForRequest(r)
 
 	// Create Plugin Context
 	ctx := &plugin.Context{Req: r}
 
-	if matchedPlugin != nil {
-		log.Printf("[HTTP] Plugin matched for %s", hostname)
-
-		// Call OnRequest hook
-		if matchedPlugin.OnRequest != nil {
-			matchedPlugin.OnRequest(ctx)
-			mockResp := ctx.GetMockResponse()
-			if mockResp != nil {
-				log.Printf("[PLUGIN] Returning direct response for %s", path)
-				h.sendMockResponse(w, mockResp)
-				return
+	// Apply OnRequest hooks in order; last Target wins
+	var selected_target *plugin.TargetConfig
+	if len(matched_plugins) > 0 {
+		log.Printf("[HTTP] %d plugin(s) matched for %s", len(matched_plugins), hostname)
+		for _, p := range matched_plugins {
+			if p.OnRequest != nil {
+				p.OnRequest(ctx)
+				if mockResp := ctx.GetMockResponse(); mockResp != nil {
+					log.Printf("[PLUGIN] Returning direct response for %s", path)
+					h.sendMockResponse(w, mockResp)
+					return
+				}
+			}
+			if p.Target != nil {
+				selected_target = p.Target
 			}
 		}
-
-		// Handle forwarding
-		if matchedPlugin.Target != nil {
-			targetURL := matchedPlugin.Target.GetTargetURL(path)
+		if selected_target != nil {
+			targetURL := selected_target.GetTargetURL(path)
 			log.Printf("[PLUGIN] Forwarding %s -> %s", hostname, targetURL)
-
-			// Update request URL
-			r.URL.Scheme = matchedPlugin.Target.Protocol
-			r.URL.Host = matchedPlugin.Target.GetHostPort()
-			r.Host = matchedPlugin.Target.GetHostPort()
+			r.URL.Scheme = selected_target.Protocol
+			r.URL.Host = selected_target.GetHostPort()
+			r.Host = selected_target.GetHostPort()
 		}
 	}
 
@@ -127,12 +127,14 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	// Handle OnResponse hook
-	if matchedPlugin != nil && matchedPlugin.OnResponse != nil {
+	// Apply OnResponse hooks of all matched plugins in order
+	if len(matched_plugins) > 0 {
 		ctx.Res = resp
-		matchedPlugin.OnResponse(ctx)
-		// ctx.Res might be modified (body/headers)
-		// If body was modified/read, ctx.Res.Body is updated/restored.
+		for _, p := range matched_plugins {
+			if p.OnResponse != nil {
+				p.OnResponse(ctx)
+			}
+		}
 	}
 
 	// Copy response headers

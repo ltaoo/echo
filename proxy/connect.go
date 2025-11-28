@@ -38,9 +38,9 @@ func (h *ConnectHandler) HandleTunnel(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[CONNECT] %s:%s", hostname, port)
 
-	// Check if there's a plugin match for this hostname
-	matchedPlugin := h.PluginLoader.MatchPlugin(hostname)
-	shouldIntercept := port == "443" || matchedPlugin != nil
+	// Check if there are plugin matches for this hostname
+	matched_plugins := h.PluginLoader.MatchPlugins(hostname)
+	should_intercept := port == "443" || len(matched_plugins) > 0
 
 	// Hijack connection
 	hijacker, ok := w.(http.Hijacker)
@@ -58,14 +58,14 @@ func (h *ConnectHandler) HandleTunnel(w http.ResponseWriter, r *http.Request) {
 	clientConn.Write([]byte("HTTP/1.1 200 Connection Established\r\nProxy-agent: echo\r\n\r\n"))
 
 	// If not intercepting (no plugin match and not port 443), just tunnel directly
-	if !shouldIntercept {
+	if !should_intercept {
 		log.Printf("[CONNECT] No plugin match for %s:%s, tunneling directly", hostname, port)
 		h.tunnelDirect(clientConn, hostname, port)
 		return
 	}
 
-	if matchedPlugin != nil {
-		log.Printf("[CONNECT] Intercepting %s:%s (plugin matched)", hostname, port)
+	if len(matched_plugins) > 0 {
+		log.Printf("[CONNECT] Intercepting %s:%s (%d plugin(s) matched)", hostname, port, len(matched_plugins))
 	} else {
 		log.Printf("[CONNECT] Intercepting %s:%s (port 443)", hostname, port)
 	}

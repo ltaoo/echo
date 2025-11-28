@@ -42,21 +42,30 @@ func (h *WebSocketHandler) HandleUpgrade(w http.ResponseWriter, r *http.Request,
 	targetProtocol := protocol
 	targetPath := path
 
-	// Check for plugin match
-	matchedPlugin := h.PluginLoader.MatchPlugin(hostname)
-	if matchedPlugin != nil && matchedPlugin.Target != nil {
-		targetHost = matchedPlugin.Target.GetHostPort()
-		targetProtocol = matchedPlugin.Target.Protocol
-		targetPath = path // Preserve path
-
-		// Normalize HTTP/HTTPS to WS/WSS for WebSocket connections
-		if targetProtocol == "http" {
-			targetProtocol = "ws"
-		} else if targetProtocol == "https" {
-			targetProtocol = "wss"
+	// Find all matching plugins; apply OnRequest hooks and choose last Target
+	matched_plugins := h.PluginLoader.MatchPluginsForRequest(r)
+	var selected_target *plugin.TargetConfig
+	if len(matched_plugins) > 0 {
+		ctx := &plugin.Context{Req: r}
+		for _, p := range matched_plugins {
+			if p.OnRequest != nil {
+				p.OnRequest(ctx)
+			}
+			if p.Target != nil {
+				selected_target = p.Target
+			}
 		}
-
-		log.Printf("[PLUGIN WS] Forwarding %s -> %s://%s%s", hostname, targetProtocol, targetHost, targetPath)
+		if selected_target != nil {
+			targetHost = selected_target.GetHostPort()
+			targetProtocol = selected_target.Protocol
+			targetPath = path
+			if targetProtocol == "http" {
+				targetProtocol = "ws"
+			} else if targetProtocol == "https" {
+				targetProtocol = "wss"
+			}
+			log.Printf("[PLUGIN WS] Forwarding %s -> %s://%s%s", hostname, targetProtocol, targetHost, targetPath)
+		}
 	}
 
 	// Clean up host for Dial

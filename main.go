@@ -70,30 +70,3 @@ func (e *Echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (e *Echo) AddPlugin(plugin *plugin.Plugin) {
 	e.pluginLoader.AddPlugin(plugin)
 }
-
-// func main() {
-// 	// 1. Load Root CA
-// 	// Assuming certs are in the current directory or a 'certs' subdirectory
-// 	// You might need to adjust paths based on where you run the binary
-// 	cwd, _ := os.Getwd()
-// 	certDir := filepath.Join(cwd, "certs")
-// 	keyPath := filepath.Join(certDir, "private.key")
-// 	certPath := filepath.Join(certDir, "certificate.crt")
-
-// 	// 5. Create Main Handler
-// 	mainHandler := http.HandlerFunc(func() {
-
-// 	})
-
-// 	// 6. Start Server
-// 	server := &http.Server{
-// 		Addr: PORT,
-// 		Handler: func(w http.ResponseWriter, r *http.Request) {
-// 		},
-// 	}
-
-// 	log.Printf("echo Proxy (Go) listening on port %s", PORT)
-// 	if err := server.ListenAndServe(); err != nil {
-// 		log.Fatal(err)
-// 	}
-// }
