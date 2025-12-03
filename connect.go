@@ -1,4 +1,4 @@
-package proxy
+package echo
 
 import (
 	"bufio"
@@ -12,13 +12,12 @@ import (
 	"time"
 
 	"github.com/ltaoo/echo/cert"
-	"github.com/ltaoo/echo/plugin"
 )
 
 // ConnectHandler handles CONNECT requests and MITM
 type ConnectHandler struct {
 	CertManager  *cert.Manager
-	PluginLoader *plugin.Loader
+	PluginLoader *Loader
 	HTTPHandler  *HTTPHandler // Shared HTTP handler
 	mitmServers  sync.Map     // map[string]*MitmServer
 }

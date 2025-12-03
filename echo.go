@@ -4,15 +4,13 @@ import (
 	"net/http"
 
 	"github.com/ltaoo/echo/cert"
-	"github.com/ltaoo/echo/plugin"
-	"github.com/ltaoo/echo/proxy"
 )
 
 type Echo struct {
-	connectHandler *proxy.ConnectHandler
-	wsHandler      *proxy.WebSocketHandler
-	httpHandler    *proxy.HTTPHandler
-	pluginLoader   *plugin.Loader
+	connectHandler *ConnectHandler
+	wsHandler      *WebSocketHandler
+	httpHandler    *HTTPHandler
+	pluginLoader   *Loader
 }
 
 func NewEcho(certFile []byte, certKey []byte) (*Echo, error) {
@@ -29,21 +27,21 @@ func NewEcho(certFile []byte, certKey []byte) (*Echo, error) {
 		// log.Fatalf("Failed to initialize certificate manager: %v", err)
 		return nil, err
 	}
-	plugins := []*plugin.Plugin{}
-	pluginLoader, err := plugin.NewLoader(plugins)
+	plugins := []*Plugin{}
+	pluginLoader, err := NewLoader(plugins)
 	if err != nil {
 		// log.Printf("Warning: Failed to load plugins: %v", err)
 		return nil, err
 	}
 
 	// 4. Initialize Proxy Handlers
-	httpHandler := proxy.NewHTTPHandler(pluginLoader)
-	connectHandler := &proxy.ConnectHandler{
+	httpHandler := NewHTTPHandler(pluginLoader)
+	connectHandler := &ConnectHandler{
 		CertManager:  certManager,
 		PluginLoader: pluginLoader,
 		HTTPHandler:  httpHandler,
 	}
-	wsHandler := &proxy.WebSocketHandler{PluginLoader: pluginLoader}
+	wsHandler := &WebSocketHandler{PluginLoader: pluginLoader}
 
 	return &Echo{
 		connectHandler: connectHandler,
@@ -60,13 +58,13 @@ func (e *Echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Handle WebSocket Upgrades (HTTP)
-	if proxy.IsWebSocketRequest(r) {
+	if IsWebSocketRequest(r) {
 		e.wsHandler.HandleUpgrade(w, r, false) // false = not secure (ws://)
 		return
 	}
 	// Handle Standard HTTP
 	e.httpHandler.HandleRequest(w, r)
 }
-func (e *Echo) AddPlugin(plugin *plugin.Plugin) {
+func (e *Echo) AddPlugin(plugin *Plugin) {
 	e.pluginLoader.AddPlugin(plugin)
 }

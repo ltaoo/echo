@@ -1,16 +1,16 @@
-package plugin
+package echo
 
 import (
 	"regexp"
 	"strings"
 )
 
-// isMatch checks if a hostname matches a pattern
+// IsMatch checks if a hostname matches a pattern
 // Supports:
 // - Exact match: "example.com"
 // - Wildcard: "*.example.com"
 // - Substring: "example" (matches "example.com", "test.example.com", etc.)
-func isMatch(hostname, pattern string) bool {
+func IsMatch(hostname, pattern string) bool {
 	// Exact match
 	if hostname == pattern {
 		return true
