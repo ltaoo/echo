@@ -5,9 +5,21 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/ltaoo/echo/cert"
 )
+
+func init() {
+	v := os.Getenv("ECHO_LOG")
+	if v == "" {
+		return
+	}
+	v = strings.ToLower(strings.TrimSpace(v))
+	if v == "0" || v == "false" || v == "no" || v == "off" {
+		log.SetOutput(io.Discard)
+	}
+}
 
 type Echo struct {
 	connectHandler *ConnectHandler
