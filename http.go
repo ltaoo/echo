@@ -1,4 +1,4 @@
-package proxy
+package echo
 
 import (
 	"bytes"
@@ -8,18 +8,16 @@ import (
 	"net"
 	"net/http"
 	"time"
-
-	"github.com/ltaoo/echo/plugin"
 )
 
 // HTTPHandler handles standard HTTP proxy requests
 type HTTPHandler struct {
-	PluginLoader *plugin.Loader
+	PluginLoader *Loader
 	Transport    *http.Transport
 }
 
 // NewHTTPHandler creates a new HTTP handler with a custom transport
-func NewHTTPHandler(loader *plugin.Loader) *HTTPHandler {
+func NewHTTPHandler(loader *Loader) *HTTPHandler {
 	return &HTTPHandler{
 		PluginLoader: loader,
 		Transport: &http.Transport{
@@ -61,10 +59,10 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 	matched_plugins := h.PluginLoader.MatchPluginsForRequest(r)
 
 	// Create Plugin Context
-	ctx := &plugin.Context{Req: r}
+	ctx := &Context{Req: r}
 
 	// Apply OnRequest hooks in order; last Target wins
-	var selected_target *plugin.TargetConfig
+	var selected_target *TargetConfig
 	if len(matched_plugins) > 0 {
 		log.Printf("[HTTP] %d plugin(s) matched for %s", len(matched_plugins), hostname)
 		for _, p := range matched_plugins {
@@ -146,7 +144,7 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, resp.Body)
 }
 
-func (h *HTTPHandler) sendMockResponse(w http.ResponseWriter, mock *plugin.MockResponse) {
+func (h *HTTPHandler) sendMockResponse(w http.ResponseWriter, mock *MockResponse) {
 	for k, v := range mock.Headers {
 		w.Header().Set(k, v)
 	}

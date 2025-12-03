@@ -1,12 +1,14 @@
-package plugin
+package echo_test
 
 import (
 	"testing"
+
+	"github.com/ltaoo/echo"
 )
 
 func assertMatch(t *testing.T, hostname, pattern string, expected bool) {
 	t.Helper()
-	got := isMatch(hostname, pattern)
+	got := echo.IsMatch(hostname, pattern)
 	if got != expected {
 		t.Fatalf("isMatch\n  pattern:   %q\n  hostname:  %q\n  expected:  %v\n  received:  %v", pattern, hostname, expected, got)
 	}

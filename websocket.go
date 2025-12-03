@@ -1,4 +1,4 @@
-package proxy
+package echo
 
 import (
 	"bufio"
@@ -9,13 +9,11 @@ import (
 	"net"
 	"net/http"
 	"strings"
-
-	"github.com/ltaoo/echo/plugin"
 )
 
 // WebSocketHandler handles WebSocket upgrades
 type WebSocketHandler struct {
-	PluginLoader *plugin.Loader
+	PluginLoader *Loader
 }
 
 // HandleUpgrade handles the WebSocket upgrade request
@@ -44,9 +42,9 @@ func (h *WebSocketHandler) HandleUpgrade(w http.ResponseWriter, r *http.Request,
 
 	// Find all matching plugins; apply OnRequest hooks and choose last Target
 	matched_plugins := h.PluginLoader.MatchPluginsForRequest(r)
-	var selected_target *plugin.TargetConfig
+	var selected_target *TargetConfig
 	if len(matched_plugins) > 0 {
-		ctx := &plugin.Context{Req: r}
+		ctx := &Context{Req: r}
 		for _, p := range matched_plugins {
 			if p.OnRequest != nil {
 				p.OnRequest(ctx)
