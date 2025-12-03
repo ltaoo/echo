@@ -6,14 +6,14 @@ import (
 	"strings"
 )
 
-// Loader handles loading and managing plugins
-type Loader struct {
+// PluginLoader handles loading and managing plugins
+type PluginLoader struct {
 	plugins []*Plugin
 }
 
-// NewLoader creates a new plugin loader
-func NewLoader(plugins []*Plugin) (*Loader, error) {
-	loader := &Loader{}
+// NewPluginLoader creates a new plugin loader
+func NewPluginLoader(plugins []*Plugin) (*PluginLoader, error) {
+	loader := &PluginLoader{}
 	if err := loader.Load(plugins); err != nil {
 		return nil, err
 	}
@@ -21,24 +21,24 @@ func NewLoader(plugins []*Plugin) (*Loader, error) {
 }
 
 // Load loads plugins from the hardcoded registry
-func (l *Loader) Load(plugins []*Plugin) error {
+func (l *PluginLoader) Load(plugins []*Plugin) error {
 
 	l.plugins = plugins
 	// fmt.Printf("Loaded %d plugin(s) from hardcoded registry\n", len(l.plugins))
 	return nil
 }
 
-func (l *Loader) AddPlugin(plugin *Plugin) {
+func (l *PluginLoader) AddPlugin(plugin *Plugin) {
 	l.plugins = append(l.plugins, plugin)
 }
 
 // GetPlugins returns all loaded plugins
-func (l *Loader) GetPlugins() []*Plugin {
+func (l *PluginLoader) GetPlugins() []*Plugin {
 	return l.plugins
 }
 
 // MatchPlugin finds the first plugin that matches the given hostname
-func (l *Loader) MatchPlugin(hostname string) *Plugin {
+func (l *PluginLoader) MatchPlugin(hostname string) *Plugin {
 	for i := range l.plugins {
 		if IsMatch(hostname, l.plugins[i].Match) {
 			return l.plugins[i]
@@ -48,7 +48,7 @@ func (l *Loader) MatchPlugin(hostname string) *Plugin {
 }
 
 // MatchPlugins returns all plugins that match the given hostname, in order
-func (l *Loader) MatchPlugins(hostname string) []*Plugin {
+func (l *PluginLoader) MatchPlugins(hostname string) []*Plugin {
 	var matches []*Plugin
 	for i := range l.plugins {
 		if IsMatch(hostname, l.plugins[i].Match) {
@@ -58,7 +58,7 @@ func (l *Loader) MatchPlugins(hostname string) []*Plugin {
 	return matches
 }
 
-func (l *Loader) MatchPluginForRequest(r *http.Request) *Plugin {
+func (l *PluginLoader) MatchPluginForRequest(r *http.Request) *Plugin {
 	if r == nil {
 		return nil
 	}
@@ -97,7 +97,7 @@ func (l *Loader) MatchPluginForRequest(r *http.Request) *Plugin {
 }
 
 // MatchPluginsForRequest returns all plugins that match the given request URL/host, in order
-func (l *Loader) MatchPluginsForRequest(r *http.Request) []*Plugin {
+func (l *PluginLoader) MatchPluginsForRequest(r *http.Request) []*Plugin {
 	if r == nil {
 		return nil
 	}

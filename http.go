@@ -12,12 +12,12 @@ import (
 
 // HTTPHandler handles standard HTTP proxy requests
 type HTTPHandler struct {
-	PluginLoader *Loader
+	PluginLoader *PluginLoader
 	Transport    *http.Transport
 }
 
 // NewHTTPHandler creates a new HTTP handler with a custom transport
-func NewHTTPHandler(loader *Loader) *HTTPHandler {
+func NewHTTPHandler(loader *PluginLoader) *HTTPHandler {
 	return &HTTPHandler{
 		PluginLoader: loader,
 		Transport: &http.Transport{

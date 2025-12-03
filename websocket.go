@@ -13,7 +13,7 @@ import (
 
 // WebSocketHandler handles WebSocket upgrades
 type WebSocketHandler struct {
-	PluginLoader *Loader
+	PluginLoader *PluginLoader
 }
 
 // HandleUpgrade handles the WebSocket upgrade request

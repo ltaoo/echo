@@ -17,7 +17,7 @@ import (
 // ConnectHandler handles CONNECT requests and MITM
 type ConnectHandler struct {
 	CertManager  *cert.Manager
-	PluginLoader *Loader
+	PluginLoader *PluginLoader
 	HTTPHandler  *HTTPHandler // Shared HTTP handler
 	mitmServers  sync.Map     // map[string]*MitmServer
 }
