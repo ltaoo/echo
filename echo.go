@@ -1,7 +1,10 @@
 package echo
 
 import (
+	"io"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/ltaoo/echo/cert"
 )
@@ -67,4 +70,12 @@ func (e *Echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 func (e *Echo) AddPlugin(plugin *Plugin) {
 	e.pluginLoader.AddPlugin(plugin)
+}
+
+func SetLogEnabled(enabled bool) {
+	if enabled {
+		log.SetOutput(os.Stderr)
+	} else {
+		log.SetOutput(io.Discard)
+	}
 }
