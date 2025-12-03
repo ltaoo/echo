@@ -10,7 +10,7 @@ type Echo struct {
 	connectHandler *ConnectHandler
 	wsHandler      *WebSocketHandler
 	httpHandler    *HTTPHandler
-	pluginLoader   *Loader
+	pluginLoader   *PluginLoader
 }
 
 func NewEcho(certFile []byte, certKey []byte) (*Echo, error) {
@@ -28,7 +28,7 @@ func NewEcho(certFile []byte, certKey []byte) (*Echo, error) {
 		return nil, err
 	}
 	plugins := []*Plugin{}
-	pluginLoader, err := NewLoader(plugins)
+	pluginLoader, err := NewPluginLoader(plugins)
 	if err != nil {
 		// log.Printf("Warning: Failed to load plugins: %v", err)
 		return nil, err
