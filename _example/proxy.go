@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/ltaoo/echo"
-	"github.com/ltaoo/echo/plugin"
 )
 
 //go:embed SunnyRoot.cer
@@ -27,26 +26,26 @@ func main() {
 		fmt.Println("Failed to start echo server", err)
 	}
 	// 用例1 mock 响应
-	echo_proxy.AddPlugin(&plugin.Plugin{
+	echo_proxy.AddPlugin(&echo.Plugin{
 		Match: "https://api.example.com/index.html",
-		OnRequest: func(ctx *plugin.Context) {
+		OnRequest: func(ctx *echo.Context) {
 			ctx.Mock(200, map[string]string{
 				"Content-Type": "text/html",
 			}, "<html><body><h1>Hello echo</h1></body></html>")
 		},
 	})
-	echo_proxy.AddPlugin(&plugin.Plugin{
+	echo_proxy.AddPlugin(&echo.Plugin{
 		Match: "https://api.example.com/api/data",
-		OnRequest: func(ctx *plugin.Context) {
+		OnRequest: func(ctx *echo.Context) {
 			ctx.Mock(200, map[string]string{
 				"Content-Type": "application/json",
 			}, `{"ok":true}`)
 		},
 	})
 	// 用例2 打印请求
-	echo_proxy.AddPlugin(&plugin.Plugin{
+	echo_proxy.AddPlugin(&echo.Plugin{
 		Match: "*.baidu.com/*",
-		OnRequest: func(ctx *plugin.Context) {
+		OnRequest: func(ctx *echo.Context) {
 			req := ctx.Req
 			if req == nil {
 				return
@@ -55,9 +54,9 @@ func main() {
 		},
 	})
 	// 用例3 修改响应body
-	echo_proxy.AddPlugin(&plugin.Plugin{
+	echo_proxy.AddPlugin(&echo.Plugin{
 		Match: "*.baidu.com/*",
-		OnResponse: func(ctx *plugin.Context) {
+		OnResponse: func(ctx *echo.Context) {
 			res := ctx.Res
 			if res == nil {
 				return
@@ -75,9 +74,9 @@ func main() {
 	})
 
 	// 用例5 修改响应 headers
-	// echo_proxy.AddPlugin(&plugin.Plugin{
+	// echo_proxy.AddPlugin(&echo.Plugin{
 	// 	Match: "*.baidu.com",
-	// 	OnResponse: func(ctx *plugin.Context) {
+	// 	OnResponse: func(ctx *echo.Context) {
 	// 		res := ctx.Res
 	// 		if res == nil {
 	// 			return
@@ -86,12 +85,19 @@ func main() {
 	// 	},
 	// })
 	// 用例5 转发请求
-	echo_proxy.AddPlugin(&plugin.Plugin{
+	echo_proxy.AddPlugin(&echo.Plugin{
 		Match: "https://www.aaa.com",
-		Target: &plugin.TargetConfig{
+		Target: &echo.TargetConfig{
 			Protocol: "https",
 			Host:     "baidu.com",
 			Port:     443,
+		},
+		OnResponse: func(ctx *echo.Context) {
+			res := ctx.Res
+			if res == nil {
+				return
+			}
+			res.Header.Set("x-echo", "1")
 		},
 	})
 
