@@ -146,7 +146,7 @@ func (t *TargetConfig) GetTargetURL(path string) string {
 	if t == nil {
 		return ""
 	}
-	return t.Protocol + "://" + t.Host + ":" + string(rune(t.Port)) + path
+	return t.Protocol + "://" + t.Host + ":" + fmt.Sprintf("%d", t.Port) + path
 }
 
 // GetHostPort returns the host:port combination

@@ -86,11 +86,24 @@ func main() {
 	// })
 	// 用例5 转发请求
 	echo_proxy.AddPlugin(&echo.Plugin{
-		Match: "https://www.aaa.com",
+		Match: "site1.funzm.fun",
 		Target: &echo.TargetConfig{
-			Protocol: "https",
-			Host:     "baidu.com",
-			Port:     443,
+			Host: "127.0.0.1",
+			Port: 8000,
+		},
+		OnResponse: func(ctx *echo.Context) {
+			res := ctx.Res
+			if res == nil {
+				return
+			}
+			res.Header.Set("x-echo", "1")
+		},
+	})
+	echo_proxy.AddPlugin(&echo.Plugin{
+		Match: "site2.funzm.fun",
+		Target: &echo.TargetConfig{
+			Host: "127.0.0.1",
+			Port: 3333,
 		},
 		OnResponse: func(ctx *echo.Context) {
 			res := ctx.Res
@@ -101,7 +114,30 @@ func main() {
 		},
 	})
 
-	PORT := "127.0.0.1:1234"
+	// 修复 App Store 访问问题 - Apple 域名直接隧道，不进行 MITM 拦截
+	// 这确保了 Apple 服务的证书验证正常工作
+	// apple_domains := []string{
+	// 	"*.apple.com",
+	// 	"*.icloud.com",
+	// 	"*.icloud-content.com",
+	// 	"*.apps.apple.com",
+	// 	"*.itunes.apple.com",
+	// 	"*.mzstatic.com",
+	// 	"*.cdn-apple.com",
+	// }
+
+	// for _, domain := range apple_domains {
+	// 	echo_proxy.AddPlugin(&echo.Plugin{
+	// 		Match: domain,
+	// 		OnRequest: func(ctx *echo.Context) {
+	// 			// 对于 Apple 域名，确保直接连接不修改任何内容
+	// 			// 这里只是记录日志，不进行拦截
+	// 			fmt.Printf("[Apple Bypass] Direct tunnel for Apple service: %s\n", ctx.Req.URL.Host)
+	// 		},
+	// 	})
+	// }
+
+	PORT := "127.0.0.1:8899"
 	// 6. Start Server
 	server := &http.Server{
 		Addr: PORT,
@@ -113,5 +149,7 @@ func main() {
 	log.Printf("echo Proxy (Go) listening on port %s", PORT)
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatal(err)
+		return
 	}
+	fmt.Println("the server is running")
 }

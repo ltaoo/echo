@@ -79,9 +79,20 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if selected_target != nil {
-			targetURL := selected_target.GetTargetURL(path)
+			targetProtocol := selected_target.Protocol
+			if targetProtocol == "" {
+				if selected_target.Port == 443 {
+					targetProtocol = "https"
+				} else {
+					targetProtocol = "http"
+				}
+			}
+
+			// Construct target URL for logging
+			targetURL := targetProtocol + "://" + selected_target.GetHostPort() + path
 			log.Printf("[PLUGIN] Forwarding %s -> %s", hostname, targetURL)
-			r.URL.Scheme = selected_target.Protocol
+
+			r.URL.Scheme = targetProtocol
 			r.URL.Host = selected_target.GetHostPort()
 			r.Host = selected_target.GetHostPort()
 		}
@@ -134,6 +145,72 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+
+	// Copy response headers
+	DelHopHeaders(resp.Header)
+	CopyHeader(w.Header(), resp.Header)
+	w.WriteHeader(resp.StatusCode)
+
+	// Copy response body
+	io.Copy(w, resp.Body)
+}
+
+// forwardDirect forwards requests directly without MITM for sensitive services
+func (h *HTTPHandler) forwardDirect(w http.ResponseWriter, r *http.Request) {
+	// Remove proxy headers
+	DelHopHeaders(r.Header)
+
+	// Create client with custom transport that doesn't verify proxy certificates for Apple domains
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			ForceAttemptHTTP2:     true, // Enable HTTP/2 for better performance
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			// Use system root CAs for proper certificate validation
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: false,
+			},
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	// Read body if present
+	var bodyReader io.Reader
+	if r.Body != nil {
+		bodyBytes, _ := io.ReadAll(r.Body)
+		r.Body.Close()
+		bodyReader = bytes.NewReader(bodyBytes)
+		r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+
+	// Create new request
+	proxyReq, err := http.NewRequest(r.Method, r.URL.String(), bodyReader)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+
+	// Copy headers
+	CopyHeader(proxyReq.Header, r.Header)
+	DelHopHeaders(proxyReq.Header)
+
+	// Send request
+	resp, err := client.Do(proxyReq)
+	if err != nil {
+		log.Printf("[Apple Direct Error] %v", err)
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
 
 	// Copy response headers
 	DelHopHeaders(resp.Header)

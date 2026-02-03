@@ -82,17 +82,16 @@ func (m *Manager) generateCert(hostname string) (*tls.Certificate, error) {
 		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			CommonName:   hostname,
-			Organization: []string{"Mini Whistle Proxy"},
+			Organization: []string{"Echo Proxy"},
 			Country:      []string{"US"},
-			Province:     []string{"Virginia"},
-			Locality:     []string{"Blacksburg"},
 		},
 		NotBefore:             time.Now().Add(-24 * time.Hour),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		NotAfter:              time.Now().Add(90 * 24 * time.Hour), // 90 days instead of 1 year
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 		IsCA:                  false,
+		DNSNames:              []string{hostname}, // Ensure hostname is in DNSNames
 	}
 
 	// Add SAN (Subject Alternative Name)

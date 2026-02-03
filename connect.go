@@ -39,7 +39,8 @@ func (h *ConnectHandler) HandleTunnel(w http.ResponseWriter, r *http.Request) {
 
 	// Check if there are plugin matches for this hostname
 	matched_plugins := h.PluginLoader.MatchPlugins(hostname)
-	should_intercept := port == "443" || len(matched_plugins) > 0
+
+	should_intercept := (port == "443" || len(matched_plugins) > 0)
 
 	// Hijack connection
 	hijacker, ok := w.(http.Hijacker)

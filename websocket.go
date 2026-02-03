@@ -57,6 +57,15 @@ func (h *WebSocketHandler) HandleUpgrade(w http.ResponseWriter, r *http.Request,
 			targetHost = selected_target.GetHostPort()
 			targetProtocol = selected_target.Protocol
 			targetPath = path
+
+			if targetProtocol == "" {
+				if selected_target.Port == 443 {
+					targetProtocol = "wss"
+				} else {
+					targetProtocol = "ws"
+				}
+			}
+
 			if targetProtocol == "http" {
 				targetProtocol = "ws"
 			} else if targetProtocol == "https" {
