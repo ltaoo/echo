@@ -1,8 +1,8 @@
 module github.com/ltaoo/echo
 
-go 1.24.0
+go 1.20
 
 require (
-	github.com/andybalholm/brotli v1.2.0
-	github.com/klauspost/compress v1.17.11
+	github.com/andybalholm/brotli v1.0.4
+	github.com/klauspost/compress v1.15.15
 )
