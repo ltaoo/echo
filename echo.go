@@ -1,3 +1,70 @@
+/*
+Package echo provides a simple proxy server implementation in Go, inspired by [Whistle].
+
+# Features
+
+  - HTTP Proxy: Supports standard HTTP proxying.
+  - HTTPS/TCP Tunneling: Supports CONNECT method for HTTPS and generic TCP tunneling.
+  - WebSocket Support: Supports WebSocket upgrades (hijacking) and tunneling.
+  - Plugin System: Flexible plugin system to modify requests and responses.
+
+# Quick Start
+
+To start the proxy server, provide a Root CA certificate and private key:
+
+	certFile, _ := os.ReadFile("certs/rootCA.crt")
+	keyFile, _ := os.ReadFile("certs/rootCA.key")
+
+	e, err := echo.NewEcho(certFile, keyFile)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	server := &http.Server{
+		Addr:    ":8888",
+		Handler: e,
+	}
+	server.ListenAndServe()
+
+# Plugins
+
+Add plugins to intercept and modify requests/responses:
+
+	e.AddPlugin(&echo.Plugin{
+		Match: "example.com",
+		OnRequest: func(ctx *echo.Context) {
+			ctx.SetRequestHeader("X-Custom-Header", "value")
+		},
+		OnResponse: func(ctx *echo.Context) {
+			body, _ := ctx.GetResponseBody()
+			ctx.SetResponseBody(strings.ReplaceAll(body, "old", "new"))
+		},
+	})
+
+# Forwarding
+
+Use [TargetConfig] to forward requests to a different server:
+
+	e.AddPlugin(&echo.Plugin{
+		Match:  "example.com",
+		Target: &echo.TargetConfig{Protocol: "http", Host: "localhost", Port: 3000},
+	})
+
+# Mock Response
+
+Use [MockResponse] to return a static response:
+
+	e.AddPlugin(&echo.Plugin{
+		Match: "example.com/api",
+		MockResponse: &echo.MockResponse{
+			StatusCode: 200,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+			Body:       `{"status":"ok"}`,
+		},
+	})
+
+[Whistle]: https://github.com/avwo/whistle
+*/
 package echo
 
 import (
