@@ -40,6 +40,27 @@ func (h *ConnectHandler) HandleTunnel(w http.ResponseWriter, r *http.Request) {
 	// Check if there are plugin matches for this hostname
 	matched_plugins := h.PluginLoader.MatchPlugins(hostname)
 
+	// Check if any matched plugin has Bypass enabled
+	for _, p := range matched_plugins {
+		if p.Bypass {
+			log.Printf("[CONNECT] Bypass enabled for %s:%s, tunneling directly", hostname, port)
+			// Hijack and tunnel directly
+			hijacker, ok := w.(http.Hijacker)
+			if !ok {
+				http.Error(w, "Hijacking not supported", http.StatusInternalServerError)
+				return
+			}
+			clientConn, _, err := hijacker.Hijack()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			clientConn.Write([]byte("HTTP/1.1 200 Connection Established\r\nProxy-agent: echo\r\n\r\n"))
+			h.tunnelDirect(clientConn, hostname, port)
+			return
+		}
+	}
+
 	should_intercept := (port == "443" || len(matched_plugins) > 0)
 
 	// Hijack connection

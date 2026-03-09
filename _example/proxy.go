@@ -21,7 +21,11 @@ func main() {
 	// Assuming certs are in the current directory or a 'certs' subdirectory
 	// You might need to adjust paths based on where you run the binary
 
-	echo_proxy, err := echo.NewEcho(cert_file, private_key_file)
+	// 使用 NewEchoWithOptions 启用内置的 bypass 规则
+	// 这会自动透传 ChatGPT、Apple、Google 等使用证书固定的服务
+	echo_proxy, err := echo.NewEchoWithOptions(cert_file, private_key_file, &echo.Options{
+		EnableBuiltinBypass: true,
+	})
 	if err != nil {
 		fmt.Println("Failed to start echo server", err)
 	}
@@ -114,28 +118,11 @@ func main() {
 		},
 	})
 
-	// 修复 App Store 访问问题 - Apple 域名直接隧道，不进行 MITM 拦截
-	// 这确保了 Apple 服务的证书验证正常工作
-	// apple_domains := []string{
-	// 	"*.apple.com",
-	// 	"*.icloud.com",
-	// 	"*.icloud-content.com",
-	// 	"*.apps.apple.com",
-	// 	"*.itunes.apple.com",
-	// 	"*.mzstatic.com",
-	// 	"*.cdn-apple.com",
-	// }
-
-	// for _, domain := range apple_domains {
-	// 	echo_proxy.AddPlugin(&echo.Plugin{
-	// 		Match: domain,
-	// 		OnRequest: func(ctx *echo.Context) {
-	// 			// 对于 Apple 域名，确保直接连接不修改任何内容
-	// 			// 这里只是记录日志，不进行拦截
-	// 			fmt.Printf("[Apple Bypass] Direct tunnel for Apple service: %s\n", ctx.Req.URL.Host)
-	// 		},
-	// 	})
-	// }
+	// 用例6: 手动添加自定义 bypass 域名
+	// echo_proxy.AddPlugin(&echo.Plugin{
+	// 	Match:  "custom-domain.com",
+	// 	Bypass: true,
+	// })
 
 	PORT := "127.0.0.1:8899"
 	// 6. Start Server

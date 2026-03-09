@@ -95,28 +95,42 @@ type Echo struct {
 	pluginLoader   *PluginLoader
 }
 
+// Options configures Echo behavior
+type Options struct {
+	// EnableBuiltinBypass enables built-in bypass rules for common services
+	// that use certificate pinning (Apple, Google, ChatGPT, etc.)
+	EnableBuiltinBypass bool
+}
+
 func NewEcho(certFile []byte, certKey []byte) (*Echo, error) {
+	return NewEchoWithOptions(certFile, certKey, nil)
+}
+
+// NewEchoWithOptions creates a new Echo instance with custom options
+func NewEchoWithOptions(certFile []byte, certKey []byte, opts *Options) (*Echo, error) {
 	caCert, caKey, err := cert.LoadRootCA(certFile, certKey)
 	if err != nil {
-		// log.Fatalf("Failed to load Root CA: %v\nPlease ensure 'certs/private.key' and 'certs/certificate.crt' exist.", err)
 		return nil, err
 	}
-	// log.Println("Root CA loaded successfully")
 
-	// 2. Initialize Certificate Manager
+	// Initialize Certificate Manager
 	certManager, err := cert.NewManager(caCert, caKey)
 	if err != nil {
-		// log.Fatalf("Failed to initialize certificate manager: %v", err)
-		return nil, err
-	}
-	plugins := []*Plugin{}
-	pluginLoader, err := NewPluginLoader(plugins)
-	if err != nil {
-		// log.Printf("Warning: Failed to load plugins: %v", err)
 		return nil, err
 	}
 
-	// 4. Initialize Proxy Handlers
+	// Initialize plugins
+	var plugins []*Plugin
+	if opts != nil && opts.EnableBuiltinBypass {
+		plugins = createBypassPlugins()
+	}
+
+	pluginLoader, err := NewPluginLoader(plugins)
+	if err != nil {
+		return nil, err
+	}
+
+	// Initialize Proxy Handlers
 	httpHandler := NewHTTPHandler(pluginLoader)
 	connectHandler := &ConnectHandler{
 		CertManager:  certManager,

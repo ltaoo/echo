@@ -13,6 +13,7 @@ type Plugin struct {
 	Match        string
 	Target       *TargetConfig
 	MockResponse *MockResponse
+	Bypass       bool // If true, skip MITM and tunnel directly
 
 	// Hooks
 	OnRequest  func(ctx *Context)
