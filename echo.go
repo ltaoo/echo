@@ -100,6 +100,11 @@ type Options struct {
 	// EnableBuiltinBypass enables built-in bypass rules for common services
 	// that use certificate pinning (Apple, Google, ChatGPT, etc.)
 	EnableBuiltinBypass bool
+
+	// InterceptOnlyMatched if true, only intercept requests that match a plugin.
+	// By default (false), all HTTPS traffic on port 443 is intercepted.
+	// When enabled, unmatched requests are tunneled directly without MITM.
+	InterceptOnlyMatched bool
 }
 
 func NewEcho(certFile []byte, certKey []byte) (*Echo, error) {
@@ -133,9 +138,10 @@ func NewEchoWithOptions(certFile []byte, certKey []byte, opts *Options) (*Echo, 
 	// Initialize Proxy Handlers
 	httpHandler := NewHTTPHandler(pluginLoader)
 	connectHandler := &ConnectHandler{
-		CertManager:  certManager,
-		PluginLoader: pluginLoader,
-		HTTPHandler:  httpHandler,
+		CertManager:          certManager,
+		PluginLoader:         pluginLoader,
+		HTTPHandler:          httpHandler,
+		InterceptOnlyMatched: opts != nil && opts.InterceptOnlyMatched,
 	}
 	wsHandler := &WebSocketHandler{PluginLoader: pluginLoader}
 

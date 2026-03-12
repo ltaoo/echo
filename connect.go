@@ -16,10 +16,11 @@ import (
 
 // ConnectHandler handles CONNECT requests and MITM
 type ConnectHandler struct {
-	CertManager  *cert.Manager
-	PluginLoader *PluginLoader
-	HTTPHandler  *HTTPHandler // Shared HTTP handler
-	mitmServers  sync.Map     // map[string]*MitmServer
+	CertManager          *cert.Manager
+	PluginLoader         *PluginLoader
+	HTTPHandler          *HTTPHandler // Shared HTTP handler
+	InterceptOnlyMatched bool         // Only intercept if plugin matches
+	mitmServers          sync.Map     // map[string]*MitmServer
 }
 
 type MitmServer struct {
@@ -39,6 +40,7 @@ func (h *ConnectHandler) HandleTunnel(w http.ResponseWriter, r *http.Request) {
 
 	// Check if there are plugin matches for this hostname
 	matched_plugins := h.PluginLoader.MatchPlugins(hostname)
+	log.Printf("[CONNECT] %s:%s matched %d plugin(s)", hostname, port, len(matched_plugins))
 
 	// Check if any matched plugin has Bypass enabled
 	for _, p := range matched_plugins {
@@ -61,7 +63,14 @@ func (h *ConnectHandler) HandleTunnel(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	should_intercept := (port == "443" || len(matched_plugins) > 0)
+	should_intercept := false
+	if h.InterceptOnlyMatched {
+		// Only intercept if there are non-bypass plugins matched
+		should_intercept = len(matched_plugins) > 0
+	} else {
+		// Default: intercept all port 443 or any plugin match
+		should_intercept = (port == "443" || len(matched_plugins) > 0)
+	}
 
 	// Hijack connection
 	hijacker, ok := w.(http.Hijacker)
@@ -80,7 +89,11 @@ func (h *ConnectHandler) HandleTunnel(w http.ResponseWriter, r *http.Request) {
 
 	// If not intercepting (no plugin match and not port 443), just tunnel directly
 	if !should_intercept {
-		log.Printf("[CONNECT] No plugin match for %s:%s, tunneling directly", hostname, port)
+		if h.InterceptOnlyMatched {
+			log.Printf("[CONNECT] No plugin match for %s:%s, bypass (intercept-only mode)", hostname, port)
+		} else {
+			log.Printf("[CONNECT] No plugin match for %s:%s, tunneling directly", hostname, port)
+		}
 		h.tunnelDirect(clientConn, hostname, port)
 		return
 	}

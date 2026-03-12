@@ -40,7 +40,7 @@ func (l *PluginLoader) GetPlugins() []*Plugin {
 // MatchPlugin finds the first plugin that matches the given hostname
 func (l *PluginLoader) MatchPlugin(hostname string) *Plugin {
 	for i := range l.plugins {
-		if IsMatch(hostname, l.plugins[i].Match) {
+		if matchHostname(hostname, l.plugins[i].Match) {
 			return l.plugins[i]
 		}
 	}
@@ -51,11 +51,58 @@ func (l *PluginLoader) MatchPlugin(hostname string) *Plugin {
 func (l *PluginLoader) MatchPlugins(hostname string) []*Plugin {
 	var matches []*Plugin
 	for i := range l.plugins {
-		if IsMatch(hostname, l.plugins[i].Match) {
+		if matchHostname(hostname, l.plugins[i].Match) {
 			matches = append(matches, l.plugins[i])
 		}
 	}
 	return matches
+}
+
+// matchHostname checks if hostname matches the pattern.
+// It extracts the hostname part from patterns that contain scheme or path.
+func matchHostname(hostname, pattern string) bool {
+	// Extract hostname from pattern if it contains scheme or path
+	patternHost := extractHostFromPattern(pattern)
+	return IsMatch(hostname, patternHost)
+}
+
+// extractHostFromPattern extracts the hostname/host pattern from a full URL pattern
+func extractHostFromPattern(pattern string) string {
+	// Remove scheme if present
+	p := pattern
+	if strings.HasPrefix(p, "https://") {
+		p = p[8:]
+	} else if strings.HasPrefix(p, "http://") {
+		p = p[7:]
+	} else if strings.HasPrefix(p, "wss://") {
+		p = p[6:]
+	} else if strings.HasPrefix(p, "ws://") {
+		p = p[5:]
+	}
+
+	// Remove path if present (find first /)
+	if idx := strings.Index(p, "/"); idx != -1 {
+		p = p[:idx]
+	}
+
+	// Remove port if present (but preserve wildcards like *.example.com)
+	// Only remove port if it looks like host:port
+	if idx := strings.LastIndex(p, ":"); idx != -1 {
+		// Check if everything after : is digits (port number)
+		port := p[idx+1:]
+		isPort := true
+		for _, c := range port {
+			if c < '0' || c > '9' {
+				isPort = false
+				break
+			}
+		}
+		if isPort && len(port) > 0 {
+			p = p[:idx]
+		}
+	}
+
+	return p
 }
 
 func (l *PluginLoader) MatchPluginForRequest(r *http.Request) *Plugin {

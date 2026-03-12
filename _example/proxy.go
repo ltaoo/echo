@@ -21,10 +21,13 @@ func main() {
 	// Assuming certs are in the current directory or a 'certs' subdirectory
 	// You might need to adjust paths based on where you run the binary
 
-	// 使用 NewEchoWithOptions 启用内置的 bypass 规则
-	// 这会自动透传 ChatGPT、Apple、Google 等使用证书固定的服务
+	// 使用 NewEchoWithOptions 配置代理行为
+	// - EnableBuiltinBypass: 自动透传 ChatGPT、Apple、Google 等使用证书固定的服务
+	// - InterceptOnlyMatched: 只拦截有插件匹配的请求，其他流量直接透传
+	//   这样设置为系统代理后，不会影响其他应用的正常使用
 	echo_proxy, err := echo.NewEchoWithOptions(cert_file, private_key_file, &echo.Options{
-		EnableBuiltinBypass: true,
+		EnableBuiltinBypass:  false, // InterceptOnlyMatched 模式下不需要内置 bypass 列表
+		InterceptOnlyMatched: true,  // 默认透传，只拦截下面配置的域名
 	})
 	if err != nil {
 		fmt.Println("Failed to start echo server", err)
