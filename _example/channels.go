@@ -122,18 +122,6 @@ func main() {
 		Action:      windows.ActionProxy,
 		Enabled:     true,
 	})
-	// 通配规则：不代理，仅用于触发回调打印所有进程连接（调试用）
-	interceptor.AddRule(&windows.ProcessRule{
-		ProcessName: "*",
-		TargetHosts: "*",
-		TargetPorts: "80;443",
-		Action:      windows.ActionDirect,
-		Enabled:     true,
-	})
-	interceptor.SetConnectionCallback(func(pid uint32, processName string, srcIP, dstIP uint32, srcPort, dstPort uint16, action windows.Action) {
-		fmt.Printf("[Interceptor] PID=%d Process=%s SrcPort=%d -> DstPort=%d Action=%v\n",
-			pid, processName, srcPort, dstPort, action)
-	})
 	if err := interceptor.Start(); err != nil {
 		fmt.Printf("启动拦截器失败: %v\n", err)
 		fmt.Println("按回车键退出...")

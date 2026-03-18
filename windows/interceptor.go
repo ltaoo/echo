@@ -20,7 +20,7 @@ const (
 	defaultRelayPort  = 34010
 	winDivertPriority = 123
 	queueLength       = 8192
-	queueTimeMs       = 8
+	queueTimeMs       = 2000
 	cleanupInterval   = 30 * time.Second
 )
 
@@ -122,10 +122,23 @@ func (i *Interceptor) Start() error {
 	time.Sleep(100 * time.Millisecond)
 
 	// 3. Open WinDivert with TCP filter
-	filter := fmt.Sprintf(
-		"tcp and (outbound or loopback or (tcp.DstPort == %d or tcp.SrcPort == %d))",
-		i.relayPort, i.relayPort,
-	)
+	// Build a port-specific filter from rules to avoid capturing unrelated traffic
+	// (e.g., RDP/SSH). Rules must be added before Start() for this to work.
+	var filter string
+	if portFilter, ok := i.rules.BuildPortFilter(); ok {
+		// Narrow filter: only capture traffic to rule-specified ports + relay port
+		filter = fmt.Sprintf(
+			"tcp and ((outbound and (%s or tcp.SrcPort == %d)) or tcp.DstPort == %d)",
+			portFilter, i.relayPort, i.relayPort,
+		)
+	} else {
+		// Fallback: broad filter (may affect remote management connections)
+		log.Printf("[interceptor] WARNING: rules have wildcard ports, using broad filter")
+		filter = fmt.Sprintf(
+			"tcp and (outbound or (tcp.DstPort == %d or tcp.SrcPort == %d))",
+			i.relayPort, i.relayPort,
+		)
+	}
 	h, err := Open(filter, LayerNetwork, winDivertPriority, 0)
 	if err != nil {
 		i.relay.Stop()

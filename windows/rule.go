@@ -354,6 +354,51 @@ func matchPortPattern(pattern string, port uint16) bool {
 	return uint16(val) == port
 }
 
+// BuildPortFilter returns a WinDivert filter expression covering all target
+// ports from enabled rules. Returns ("", false) if any enabled rule uses
+// wildcard ports ("*" or empty), meaning the filter cannot be narrowed.
+// Rules must be added before calling Start() for port-specific filtering.
+func (rm *RuleManager) BuildPortFilter() (string, bool) {
+	rm.mu.RLock()
+	defer rm.mu.RUnlock()
+
+	seen := make(map[string]bool)
+	var clauses []string
+
+	for _, r := range rm.rules {
+		if !r.Enabled {
+			continue
+		}
+		ports := r.TargetPorts
+		if ports == "" || ports == "*" {
+			return "", false
+		}
+		for _, token := range splitTokens(ports, ",;") {
+			token = strings.TrimSpace(token)
+			if token == "" || token == "*" {
+				return "", false
+			}
+			if seen[token] {
+				continue
+			}
+			seen[token] = true
+
+			if dashIdx := strings.IndexByte(token, '-'); dashIdx >= 0 {
+				start := token[:dashIdx]
+				end := token[dashIdx+1:]
+				clauses = append(clauses, fmt.Sprintf("(tcp.DstPort >= %s and tcp.DstPort <= %s)", start, end))
+			} else {
+				clauses = append(clauses, fmt.Sprintf("tcp.DstPort == %s", token))
+			}
+		}
+	}
+
+	if len(clauses) == 0 {
+		return "", false
+	}
+	return strings.Join(clauses, " or "), true
+}
+
 // --- Utility ---
 
 func splitTokens(s string, delims string) []string {
