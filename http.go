@@ -7,21 +7,48 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 )
 
 // HTTPHandler handles standard HTTP proxy requests
 type HTTPHandler struct {
-	PluginLoader *PluginLoader
-	Transport    *http.Transport
+	PluginLoader      *PluginLoader
+	Transport         *http.Transport
+	FallbackTransport *http.Transport // 直连，用于上游代理不可用时 fallback
+	UpstreamProxy     string
 }
 
 // NewHTTPHandler creates a new HTTP handler with a custom transport
 func NewHTTPHandler(loader *PluginLoader) *HTTPHandler {
+	return NewHTTPHandlerWithUpstream(loader, "")
+}
+
+// NewHTTPHandlerWithUpstream creates a new HTTP handler with upstream proxy support
+func NewHTTPHandlerWithUpstream(loader *PluginLoader, upstreamProxy string) *HTTPHandler {
+	var proxyFunc func(*http.Request) (*url.URL, error)
+	if upstreamProxy != "" {
+		proxyURL, err := url.Parse(upstreamProxy)
+		if err != nil {
+			log.Printf("[UpstreamProxy] Invalid proxy URL: %v, falling back to direct", err)
+			proxyFunc = nil
+		} else {
+			// 自定义 proxy 函数，带 fallback 到直连
+			proxyURL := proxyURL
+			proxyFunc = func(req *http.Request) (*url.URL, error) {
+				return proxyURL, nil
+			}
+			log.Printf("[UpstreamProxy] Using upstream proxy: %s (with fallback to direct)", upstreamProxy)
+		}
+	} else {
+		proxyFunc = http.ProxyFromEnvironment
+	}
+
 	return &HTTPHandler{
-		PluginLoader: loader,
+		PluginLoader:  loader,
+		UpstreamProxy: upstreamProxy,
 		Transport: &http.Transport{
-			Proxy: http.ProxyFromEnvironment,
+			Proxy: proxyFunc,
 			DialContext: (&net.Dialer{
 				Timeout:   30 * time.Second,
 				KeepAlive: 30 * time.Second,
@@ -33,6 +60,19 @@ func NewHTTPHandler(loader *PluginLoader) *HTTPHandler {
 			ExpectContinueTimeout: 1 * time.Second,
 			// Disable HTTP/2 by setting TLSNextProto to non-nil empty map
 			TLSNextProto: make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+		},
+		FallbackTransport: &http.Transport{
+			Proxy: nil, // 直连
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			ForceAttemptHTTP2:     false,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			TLSNextProto:          make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
 		},
 	}
 }
@@ -127,11 +167,23 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 	CopyHeader(proxyReq.Header, r.Header)
 	DelHopHeaders(proxyReq.Header)
 
-	// Send request
-	resp, err := client.Do(proxyReq)
-	if err != nil {
-		log.Printf("[HTTP Error] %v", err)
-		http.Error(w, err.Error(), http.StatusBadGateway)
+	// Send request with fallback to direct when upstream proxy fails
+	var resp *http.Response
+	sendErr := error(nil)
+	resp, sendErr = client.Do(proxyReq)
+	if sendErr != nil && h.UpstreamProxy != "" && h.FallbackTransport != nil {
+		log.Printf("[UpstreamProxy] Failed, falling back to direct: %v", sendErr)
+		fallbackClient := &http.Client{
+			Transport: h.FallbackTransport,
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		}
+		resp, sendErr = fallbackClient.Do(proxyReq)
+	}
+	if sendErr != nil {
+		log.Printf("[HTTP Error] %v", sendErr)
+		http.Error(w, sendErr.Error(), http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()

@@ -118,6 +118,25 @@ func main() {
    curl -x http://127.0.0.1:8888 https://example.com
    ```
 
+## Upstream Proxy Support
+
+Echo supports forwarding requests through an upstream proxy, enabling it to work with other proxy software:
+
+```go
+echo_proxy, err := echo.NewEchoWithOptions(certFile, keyFile, &echo.Options{
+    UpstreamProxy: "http://127.0.0.1:7890", // HTTP/HTTPS proxy
+    // Or SOCKS5:
+    // UpstreamProxy: "socks5://127.0.0.1:1080",
+})
+```
+
+**Usage with other proxies:**
+1. Set your system/network proxy to another proxy (e.g., port 8899)
+2. Configure Echo's `UpstreamProxy` to point to itself or another forward proxy
+3. Traffic flow: App → Other Proxy → Echo → UpstreamProxy → Target
+
+This allows Echo to coexist with VPN clients, Clash, V2Ray, or other proxy tools.
+
 ## Implementation Details
 
 - Uses Go's `net/http` for server handling.

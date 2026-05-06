@@ -1,3 +1,5 @@
 .DS_Store
 *.exe
 .env
+
+_example/work.go

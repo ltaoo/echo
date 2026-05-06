@@ -25,9 +25,15 @@ func main() {
 	// - EnableBuiltinBypass: 自动透传 ChatGPT、Apple、Google 等使用证书固定的服务
 	// - InterceptOnlyMatched: 只拦截有插件匹配的请求，其他流量直接透传
 	//   这样设置为系统代理后，不会影响其他应用的正常使用
+	// - UpstreamProxy: 配置上游代理，让 echo 转发所有请求到指定代理
+	//   这样就可以配合其他代理软件一起使用：
+	//   1. 设置系统代理为其他代理（如 8899）
+	//   2. 配置 UpstreamProxy 为 echo（如 127.0.0.1:8888）
+	//   请求流程：应用 -> 其他代理(8899) -> echo(8888) -> UpstreamProxy -> 目标
 	echo_proxy, err := echo.NewEchoWithOptions(cert_file, private_key_file, &echo.Options{
-		EnableBuiltinBypass:  false, // InterceptOnlyMatched 模式下不需要内置 bypass 列表
-		InterceptOnlyMatched: true,  // 默认透传，只拦截下面配置的域名
+		EnableBuiltinBypass:  false,
+		InterceptOnlyMatched: true,
+		// UpstreamProxy: "http://127.0.0.1:7890", // 启用上游代理（如 Clash、V2Ray 等）
 	})
 	if err != nil {
 		fmt.Println("Failed to start echo server", err)

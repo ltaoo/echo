@@ -105,6 +105,12 @@ type Options struct {
 	// By default (false), all HTTPS traffic on port 443 is intercepted.
 	// When enabled, unmatched requests are tunneled directly without MITM.
 	InterceptOnlyMatched bool
+
+	// UpstreamProxy specifies an upstream proxy to forward requests to.
+	// Format: "http://proxy:port" or "socks5://proxy:port"
+	// When set, echo will forward all outbound requests through this proxy
+	// instead of connecting directly to targets.
+	UpstreamProxy string
 }
 
 func NewEcho(certFile []byte, certKey []byte) (*Echo, error) {
@@ -136,12 +142,17 @@ func NewEchoWithOptions(certFile []byte, certKey []byte, opts *Options) (*Echo, 
 	}
 
 	// Initialize Proxy Handlers
-	httpHandler := NewHTTPHandler(pluginLoader)
+	var upstreamProxy string
+	if opts != nil {
+		upstreamProxy = opts.UpstreamProxy
+	}
+	httpHandler := NewHTTPHandlerWithUpstream(pluginLoader, upstreamProxy)
 	connectHandler := &ConnectHandler{
 		CertManager:          certManager,
 		PluginLoader:         pluginLoader,
 		HTTPHandler:          httpHandler,
 		InterceptOnlyMatched: opts != nil && opts.InterceptOnlyMatched,
+		UpstreamProxy:        upstreamProxy,
 	}
 	wsHandler := &WebSocketHandler{PluginLoader: pluginLoader}
 
