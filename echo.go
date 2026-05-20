@@ -93,6 +93,7 @@ type Echo struct {
 	wsHandler      *WebSocketHandler
 	httpHandler    *HTTPHandler
 	pluginLoader   *PluginLoader
+	tcpRelay       *TCPRelay
 }
 
 // Options configures Echo behavior
@@ -180,6 +181,21 @@ func (e *Echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 func (e *Echo) AddPlugin(plugin *Plugin) {
 	e.pluginLoader.AddPlugin(plugin)
+}
+
+// ListenTCP starts a TCP relay on listenAddr that accepts raw TCP connections and
+// forwards them to echoAddr using HTTP proxy protocol.
+// The relay infers the target destination from TLS SNI or HTTP Host header.
+func (e *Echo) ListenTCP(listenAddr, echoAddr string) error {
+	e.tcpRelay = NewTCPRelay(listenAddr, echoAddr)
+	return e.tcpRelay.Start()
+}
+
+// ShutdownTCP stops the TCP relay if one is running.
+func (e *Echo) ShutdownTCP() {
+	if e.tcpRelay != nil {
+		e.tcpRelay.Stop()
+	}
 }
 
 func SetLogEnabled(enabled bool) {

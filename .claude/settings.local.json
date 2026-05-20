@@ -1,10 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git tag:*)",
-      "Bash(chmod +x /Users/mayfair/Documents/other/echo/deploy.sh)"
+      "Bash(lsof -ti:8899 -ti:9900 -ti:3334 2>/dev/null | xargs kill -9 2>/dev/null; echo \"stopped\")"
     ]
   }
 }

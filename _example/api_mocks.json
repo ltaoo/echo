@@ -1,0 +1,57 @@
+{
+  "mocks": [
+    {
+      "match": "https://www.urbanic-supplier.cn/api/uap/productAnalysis/goodsSale/listSkcData*",
+      "method": "GET",
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "bodyFile": "_example/dd.json"
+    },
+    {
+      "match": "https://www.urbanic-supplier.cn/api/upp/announcement/getHomeInfo*",
+      "method": "GET",
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "bodyFile": "_example/home_info.json"
+    },
+    {
+      "match": "https://uap.mayfair-inc.net/api/uap/productAnalysis/goodsSale/listSkcData*",
+      "method": "GET",
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "bodyFile": "_example/dd.json"
+    },
+    {
+      "match": "https://api.urbanic-supplier.net/api/upp/announcement/getHomeInfo*",
+      "method": "GET",
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "https://www.urbanic-supplier.net",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, request-identifier, ur-sys-appid, country-language",
+        "Access-Control-Allow-Credentials": "true"
+      },
+      "bodyFile": "_example/home_info.json"
+    },
+    {
+      "match": "https://api.urbanic-supplier.net/api/upp/announcement/getPopupInfo*",
+      "method": "GET",
+      "status": 200,
+      "headers": {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "https://www.urbanic-supplier.net",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, request-identifier, ur-sys-appid, country-language",
+        "Access-Control-Allow-Credentials": "true"
+      },
+      "bodyFile": "_example/popup_info.json"
+    }
+  ]
+}

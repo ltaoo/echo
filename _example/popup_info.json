@@ -1,0 +1,107 @@
+{
+  "returnCode": 10000,
+  "returnMsg": null,
+  "data": {
+    "totalNum": 4,
+    "details": [
+      {
+        "id": 1001,
+        "publishTime": 1747497600000,
+        "title": "System Maintenance Notice",
+        "type": 1,
+        "content": "The system will undergo scheduled maintenance on May 20, 2026 from 02:00-04:00 UTC. Some services may be temporarily unavailable.",
+        "attachments": [
+          {
+            "attachmentName": "maintenance_guide.pdf",
+            "attachmentFileUrl": "https://www.urbanic-supplier.net/files/maintenance_guide.pdf"
+          }
+        ],
+        "hasJumpButton": true,
+        "buttonText": "View Details",
+        "buttonUrl": "https://www.urbanic-supplier.net/announcement/1001",
+        "scopeType": "ALL",
+        "scopeContent": [],
+        "typeDesc": "System Announcement",
+        "hasAttachment": true,
+        "isPopup": true,
+        "isTop": true,
+        "isDraft": false,
+        "status": 1,
+        "createTime": 1747411200000,
+        "creator": "admin"
+      },
+      {
+        "id": 1002,
+        "publishTime": 1747584000000,
+        "title": "New Supplier Policy Update",
+        "type": 2,
+        "content": "Starting June 2026, all suppliers must upload product certifications before listing. Please review the updated supplier handbook for detailed requirements.",
+        "attachments": [],
+        "hasJumpButton": false,
+        "buttonText": "",
+        "buttonUrl": "",
+        "scopeType": "SUPPLIER",
+        "scopeContent": ["Gold", "Silver"],
+        "typeDesc": "Policy Update",
+        "hasAttachment": false,
+        "isPopup": true,
+        "isTop": false,
+        "isDraft": false,
+        "status": 1,
+        "createTime": 1747500000000,
+        "creator": "policy_team"
+      },
+      {
+        "id": 1003,
+        "publishTime": 1747670400000,
+        "title": "Holiday Shipping Schedule",
+        "type": 3,
+        "content": "Due to upcoming holidays, order processing will be delayed from May 25-27. Please plan your inventory accordingly. Normal operations resume May 28.",
+        "attachments": [
+          {
+            "attachmentName": "holiday_schedule_2026.xlsx",
+            "attachmentFileUrl": "https://www.urbanic-supplier.net/files/holiday_schedule_2026.xlsx"
+          },
+          {
+            "attachmentName": "faq.pdf",
+            "attachmentFileUrl": "https://www.urbanic-supplier.net/files/faq.pdf"
+          }
+        ],
+        "hasJumpButton": true,
+        "buttonText": "Check Schedule",
+        "buttonUrl": "https://www.urbanic-supplier.net/announcement/1003",
+        "scopeType": "ALL",
+        "scopeContent": [],
+        "typeDesc": "Operational Notice",
+        "hasAttachment": true,
+        "isPopup": false,
+        "isTop": false,
+        "isDraft": false,
+        "status": 1,
+        "createTime": 1747600000000,
+        "creator": "ops_manager"
+      },
+      {
+        "id": 1004,
+        "publishTime": 1747756800000,
+        "title": "Platform Feature: Bulk Upload",
+        "type": 4,
+        "content": "We are excited to announce the new bulk product upload feature. You can now upload up to 500 SKUs at once via CSV. Visit the help center for a step-by-step tutorial.",
+        "attachments": [],
+        "hasJumpButton": true,
+        "buttonText": "Try Now",
+        "buttonUrl": "https://www.urbanic-supplier.net/bulk-upload",
+        "scopeType": "ALL",
+        "scopeContent": [],
+        "typeDesc": "Feature Update",
+        "hasAttachment": false,
+        "isPopup": false,
+        "isTop": false,
+        "isDraft": false,
+        "status": 1,
+        "createTime": 1747680000000,
+        "creator": "product_team"
+      }
+    ]
+  }
+}

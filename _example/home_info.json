@@ -1,0 +1,137 @@
+{
+    "returnCode": 10000,
+    "returnMsg": null,
+    "data": {
+        "accountName": "弈思",
+        "stockPendingInfo": {
+            "pendingPushNum": null,
+            "pendingSampleSendNum": null,
+            "sampleRejectedReworkNum": null,
+            "sampleRejectedInfoNum": null,
+            "reviewRejectedReworkNum": null,
+            "reviewRejectedInfoNum": null,
+            "pricingFeedbackPendingNum": null,
+            "colorConfirmPendingNum": null
+        },
+        "oemPendingInfo": {
+            "pendingAcceptOrderNum": null,
+            "pendingPushNum": null,
+            "pendingSampleSendNum": null,
+            "sampleRejectedReworkNum": null,
+            "sampleRejectedInfoNum": null,
+            "reviewRejectedReworkNum": null,
+            "reviewRejectedInfoNum": null,
+            "pricingFeedbackPendingNum": null,
+            "colorConfirmPendingNum": null
+        },
+        "orderPendingInfo": {
+            "demandOrder": {
+                "pendingShipNum": null,
+                "almostTimeoutNum": null,
+                "timeoutNum": null
+            },
+            "stockOrder": {
+                "pendingShipNum": null,
+                "almostTimeoutNum": null,
+                "timeoutNum": null
+            }
+        },
+        "activity": {
+            "enrollingNum": null,
+            "enrolledNum": null
+        },
+        "announcementUnreadNum": 13,
+        "announcementList": [
+            {
+                "id": 28,
+                "type": 3,
+                "typeDesc": "培训",
+                "title": "测试一个复杂的例子",
+                "time": 1778571310351,
+                "pinned": true,
+                "hasRead": true
+            },
+            {
+                "id": 27,
+                "type": 1,
+                "typeDesc": "通知",
+                "title": "测试一个超长标题的，并且还固定的公告",
+                "time": 1778570970254,
+                "pinned": true,
+                "hasRead": true
+            },
+            {
+                "id": 49,
+                "type": 1,
+                "typeDesc": "通知",
+                "title": "测试公告出现3",
+                "time": 1779084612988,
+                "pinned": false,
+                "hasRead": false
+            },
+            {
+                "id": 48,
+                "type": 1,
+                "typeDesc": "通知",
+                "title": "测试公告出2",
+                "time": 1779084584690,
+                "pinned": false,
+                "hasRead": false
+            },
+            {
+                "id": 47,
+                "type": 1,
+                "typeDesc": "通知",
+                "title": "测试公告出现1",
+                "time": 1779084564555,
+                "pinned": false,
+                "hasRead": false
+            },
+            {
+                "id": 46,
+                "type": 1,
+                "typeDesc": "通知",
+                "title": "测试公告出现测试公告出现测试公告出现测试公告出现测试公告出现测试公告出现",
+                "time": 1779084480463,
+                "pinned": false,
+                "hasRead": true
+            },
+            {
+                "id": 45,
+                "type": 1,
+                "typeDesc": "通知",
+                "title": "测试公告出现测试公告出现测试公告出现测试公告出现测试公告出现测试公告出现测试公告出现",
+                "time": 1779084437113,
+                "pinned": false,
+                "hasRead": false
+            },
+            {
+                "id": 44,
+                "type": 1,
+                "typeDesc": "通知",
+                "title": "tttttttttttttttttttttttttttt",
+                "time": 1779084390190,
+                "pinned": false,
+                "hasRead": false
+            },
+            {
+                "id": 43,
+                "type": 1,
+                "typeDesc": "通知",
+                "title": "一个新的有按钮的公告",
+                "time": 1778726232177,
+                "pinned": false,
+                "hasRead": true
+            },
+            {
+                "id": 42,
+                "type": 2,
+                "typeDesc": "活动",
+                "title": "测试按钮2",
+                "time": 1778725733894,
+                "pinned": false,
+                "hasRead": true
+            }
+        ]
+    }
+}
