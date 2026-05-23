@@ -68,6 +68,7 @@ Use [MockResponse] to return a static response:
 package echo
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -75,6 +76,7 @@ import (
 	"strings"
 
 	"github.com/ltaoo/echo/cert"
+	"github.com/ltaoo/echo/tun"
 )
 
 func init() {
@@ -94,6 +96,7 @@ type Echo struct {
 	httpHandler    *HTTPHandler
 	pluginLoader   *PluginLoader
 	tcpRelay       *TCPRelay
+	tunServer      *tun.Server
 }
 
 // Options configures Echo behavior
@@ -112,6 +115,14 @@ type Options struct {
 	// When set, echo will forward all outbound requests through this proxy
 	// instead of connecting directly to targets.
 	UpstreamProxy string
+
+	// Tun enables TUN-level traffic forwarding (process-based routing).
+	// When true, TunConfig is required.
+	Tun bool
+
+	// TunConfig is the TUN configuration. Only used when Tun is true.
+	// Can be loaded from a file via tun.LoadConfig() or built programmatically.
+	TunConfig *tun.TunConfig
 }
 
 func NewEcho(certFile []byte, certKey []byte) (*Echo, error) {
@@ -157,12 +168,31 @@ func NewEchoWithOptions(certFile []byte, certKey []byte, opts *Options) (*Echo, 
 	}
 	wsHandler := &WebSocketHandler{PluginLoader: pluginLoader}
 
-	return &Echo{
+	e := &Echo{
 		connectHandler: connectHandler,
 		wsHandler:      wsHandler,
 		httpHandler:    httpHandler,
 		pluginLoader:   pluginLoader,
-	}, nil
+	}
+
+	// Initialize TUN if enabled
+	if opts != nil && opts.Tun {
+		cfg := opts.TunConfig
+		if cfg == nil {
+			cfg = tun.DefaultConfig()
+		}
+		tunServer, err := tun.New(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("tun.New: %w", err)
+		}
+		if err := tunServer.Start(); err != nil {
+			tunServer.Close()
+			return nil, fmt.Errorf("tun.Start: %w", err)
+		}
+		e.tunServer = tunServer
+	}
+
+	return e, nil
 }
 
 func (e *Echo) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -196,6 +226,21 @@ func (e *Echo) ShutdownTCP() {
 	if e.tcpRelay != nil {
 		e.tcpRelay.Stop()
 	}
+}
+
+// ShutdownTUN stops the TUN forwarder if one is running.
+func (e *Echo) ShutdownTUN() {
+	if e.tunServer != nil {
+		e.tunServer.Close()
+		e.tunServer = nil
+	}
+}
+
+// Close shuts down all components (TCP relay, TUN).
+func (e *Echo) Close() error {
+	e.ShutdownTCP()
+	e.ShutdownTUN()
+	return nil
 }
 
 func SetLogEnabled(enabled bool) {
