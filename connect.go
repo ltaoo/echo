@@ -2,6 +2,7 @@ package echo
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -91,15 +92,10 @@ func (h *ConnectHandler) HandleTunnel(w http.ResponseWriter, r *http.Request) {
 	clientConn.Write([]byte("HTTP/1.1 200 Connection Established\r\nProxy-agent: echo\r\n\r\n"))
 
 	// If not intercepting (no plugin match and not port 443), just tunnel directly
-	if !should_intercept {
-		if h.InterceptOnlyMatched {
-			log.Printf("[CONNECT] No plugin match for %s:%s, bypass (intercept-only mode)", hostname, port)
-		} else {
-			log.Printf("[CONNECT] No plugin match for %s:%s, tunneling directly", hostname, port)
+		if !should_intercept {
+			h.tunnelDirect(clientConn, hostname, port)
+			return
 		}
-		h.tunnelDirect(clientConn, hostname, port)
-		return
-	}
 
 	if len(matched_plugins) > 0 {
 		log.Printf("[CONNECT] Intercepting %s:%s (%d plugin(s) matched)", hostname, port, len(matched_plugins))
@@ -122,9 +118,13 @@ func (h *ConnectHandler) HandleTunnel(w http.ResponseWriter, r *http.Request) {
 	if peekBytes[0] == 0x16 {
 		// It's TLS, start MITM
 		h.handleMitm(clientConn, bufClientConn, hostname)
+	} else if len(matched_plugins) > 0 {
+		// Non-TLS with matching plugins: handle HTTP locally (no target DNS needed)
+		log.Printf("[CONNECT] Plain HTTP for %s:%s with %d plugin(s), handling locally", hostname, port, len(matched_plugins))
+		h.handlePlainHTTPTunnel(clientConn, bufClientConn, hostname, matched_plugins)
 	} else {
-		// Not TLS, tunnel directly
-		log.Printf("[Protocol Sniffing] Non-TLS traffic on port 443 for %s. Bypassing MITM.", hostname)
+		// Not TLS, no plugins â€” tunnel directly
+		log.Printf("[Protocol Sniffing] Non-TLS traffic for %s. Bypassing MITM.", hostname)
 		h.tunnelDirectWithBuffer(clientConn, bufClientConn, hostname, port)
 	}
 }
@@ -284,6 +284,98 @@ func (h *ConnectHandler) handleMitmRequest(w http.ResponseWriter, r *http.Reques
 		handler = NewHTTPHandler(h.PluginLoader)
 	}
 	handler.HandleRequest(w, r)
+}
+
+// handlePlainHTTPTunnel handles a non-TLS HTTP request arriving through a CONNECT tunnel.
+// This is used when TUN routes plain HTTP (port 80) traffic to the proxy via CONNECT.
+// Instead of tunneling to the target (which may not exist in DNS), we parse the HTTP
+// request locally and serve mock responses directly.
+func (h *ConnectHandler) handlePlainHTTPTunnel(clientConn net.Conn, bufClientConn *bufio.Reader, hostname string, plugins []*Plugin) {
+	req, err := http.ReadRequest(bufClientConn)
+	if err != nil {
+		log.Printf("[Plain HTTP] Failed to read request: %v", err)
+		clientConn.Close()
+		return
+	}
+
+	// Reconstruct URL: the request line is "GET /path HTTP/1.1", fill in scheme + host
+	req.URL.Scheme = "http"
+	req.URL.Host = hostname
+	if req.Host == "" {
+		req.Host = hostname
+	}
+
+	log.Printf("[Plain HTTP] %s %s (Host: %s)", req.Method, req.URL.String(), req.Host)
+
+	// Run plugin OnRequest hooks
+	ctx := &Context{Req: req}
+	for _, p := range plugins {
+		if p.OnRequest != nil {
+			p.OnRequest(ctx)
+			if mockResp := ctx.GetMockResponse(); mockResp != nil {
+				log.Printf("[Plain HTTP] Mock response for %s", hostname)
+				h.writeMockToConn(clientConn, req, mockResp)
+				clientConn.Close()
+				return
+			}
+		}
+	}
+
+	// No mock â€” tunnel to real target
+	targetConn, err := net.DialTimeout("tcp", net.JoinHostPort(hostname, req.URL.Port()), 10*time.Second)
+	if err != nil {
+		log.Printf("[Plain HTTP] Tunnel to %s failed: %v", hostname, err)
+		clientConn.Close()
+		return
+	}
+
+	go func() {
+		defer targetConn.Close()
+		defer clientConn.Close()
+		req.Write(targetConn)
+		io.Copy(targetConn, bufClientConn)
+	}()
+	transfer(clientConn, targetConn)
+}
+
+// writeMockToConn writes a mock HTTP response to a raw connection.
+func (h *ConnectHandler) writeMockToConn(conn net.Conn, req *http.Request, mock *MockResponse) {
+	statusCode := mock.StatusCode
+	if statusCode == 0 {
+		statusCode = http.StatusOK
+	}
+	body := mock.Body
+	var bodyReader io.Reader
+	switch v := body.(type) {
+	case string:
+		bodyReader = strings.NewReader(v)
+	case []byte:
+		bodyReader = bytes.NewReader(v)
+	default:
+		bodyReader = strings.NewReader("")
+	}
+
+	resp := &http.Response{
+		Status:     fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
+		StatusCode: statusCode,
+		Proto:      "HTTP/1.1",
+		ProtoMajor: 1,
+		ProtoMinor: 1,
+		Header:     make(http.Header),
+		Body:       io.NopCloser(bodyReader),
+		Request:    req,
+	}
+	for k, v := range mock.Headers {
+		resp.Header.Set(k, v)
+	}
+	if resp.Header.Get("Content-Type") == "" {
+		resp.Header.Set("Content-Type", "text/html; charset=utf-8")
+	}
+	resp.ContentLength = int64(len(fmt.Sprint(body)))
+
+	if err := resp.Write(conn); err != nil {
+		log.Printf("[Plain HTTP] Write response: %v", err)
+	}
 }
 
 func transfer(dst io.WriteCloser, src io.ReadCloser) {
