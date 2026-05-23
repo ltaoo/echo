@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/netip"
-	"os"
 	"runtime"
 	"time"
 
@@ -37,7 +36,7 @@ func New(cfg *TunConfig) (*Server, error) {
 	// 1. Create process searcher
 	searcher, err := routerhandler.NewSearcher(routerhandler.Config{
 		Logger: func(format string, args ...interface{}) {
-			fmt.Fprintf(os.Stderr, "[process] "+format+"\n", args...)
+			fmt.Fprintf(logWriter, "[process] "+format+"\n", args...)
 		},
 	})
 	if err != nil {

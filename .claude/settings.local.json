@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(lsof -ti:8899 -ti:9900 -ti:3334 2>/dev/null | xargs kill -9 2>/dev/null; echo \"stopped\")"
+      "Bash(lsof -ti:8899 -ti:9900 -ti:3334 2>/dev/null | xargs kill -9 2>/dev/null; echo \"stopped\")",
+      "Bash(go build *)",
+      "Bash(go vet *)"
     ]
   }
 }

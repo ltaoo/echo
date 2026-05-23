@@ -5,7 +5,6 @@ package tun
 import (
 	"fmt"
 	"net"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -97,10 +96,10 @@ func dumpRoutes() {
 	out, err := exec.Command("powershell", "-NoProfile", "-Command",
 		"Get-NetRoute -DestinationPrefix '0.0.0.0/0','0.0.0.0/1','128.0.0.0/1' | Select-Object DestinationPrefix,NextHop,InterfaceAlias,RouteMetric | Format-Table -AutoSize | Out-String -Width 200").Output()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[debug] route dump failed: %v\n", err)
+		fmt.Fprintf(logWriter, "[debug] route dump failed: %v\n", err)
 		return
 	}
-	fmt.Fprintf(os.Stderr, "[debug] Active default routes:\n%s\n", string(out))
+	fmt.Fprintf(logWriter, "[debug] Active default routes:\n%s\n", string(out))
 }
 
 // detectDefaultGateway returns the first non-zero default gateway for IPv4.

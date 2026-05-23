@@ -249,4 +249,5 @@ func SetLogEnabled(enabled bool) {
 	} else {
 		log.SetOutput(io.Discard)
 	}
+	tun.SetLogEnabled(enabled)
 }
