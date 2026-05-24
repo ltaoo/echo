@@ -2,4 +2,5 @@
 *.exe
 .env
 
+_example/*.json
 _example/work.go
