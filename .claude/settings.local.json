@@ -3,7 +3,19 @@
     "allow": [
       "Bash(lsof -ti:8899 -ti:9900 -ti:3334 2>/dev/null | xargs kill -9 2>/dev/null; echo \"stopped\")",
       "Bash(go build *)",
-      "Bash(go vet *)"
+      "Bash(go vet *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git filter-branch *)",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(git apply *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(git reset *)",
+      "Bash(git update-ref *)",
+      "Bash(git reflog *)",
+      "Bash(git gc *)",
+      "Bash(echo \"--- tracked json in _example: $?\")"
     ]
   }
 }

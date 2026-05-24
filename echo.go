@@ -72,7 +72,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/ltaoo/echo/cert"
@@ -180,6 +182,27 @@ func NewEchoWithOptions(certFile []byte, certKey []byte, opts *Options) (*Echo, 
 		cfg := opts.TunConfig
 		if cfg == nil {
 			cfg = tun.DefaultConfig()
+		}
+		// If upstream proxy is configured, route unmatched traffic through it
+		// instead of direct, so VPN/proxy users don't experience routing conflicts.
+		if upstreamProxy != "" {
+			if u, err := url.Parse(upstreamProxy); err == nil {
+				p, _ := strconv.Atoi(u.Port())
+				if p == 0 {
+					if u.Scheme == "socks5" {
+						p = 1080
+					} else {
+						p = 7890
+					}
+				}
+				cfg.Outbounds = append(cfg.Outbounds, tun.OutboundConfig{
+					Tag:    "upstream",
+					Type:   u.Scheme,
+					Server: u.Hostname(),
+					Port:   uint16(p),
+				})
+				cfg.Route.Final = "upstream"
+			}
 		}
 		tunServer, err := tun.New(cfg)
 		if err != nil {

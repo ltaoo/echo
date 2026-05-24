@@ -12,6 +12,7 @@ import (
 	"github.com/sagernet/sing/common/logger"
 	M "github.com/sagernet/sing/common/metadata"
 	singHTTP "github.com/sagernet/sing/protocol/http"
+	singSocks "github.com/sagernet/sing/protocol/socks"
 
 	"github.com/ltaoo/echo/tun/routerhandler"
 )
@@ -143,7 +144,11 @@ func (s *Server) Start() error {
 				client: client,
 			}
 		case "socks5":
-			s.log.Warn("socks5 outbound not yet implemented, skipping: ", obCfg.Tag)
+			serverAddr := M.ParseSocksaddr(fmt.Sprintf("%s:%d", obCfg.Server, obCfg.Port))
+			outboundsMap[obCfg.Tag] = &socks5Outbound{
+				tag:    obCfg.Tag,
+				client: singSocks.NewClient(dd, serverAddr, singSocks.Version5, obCfg.Username, obCfg.Password),
+			}
 		default:
 			s.log.Warn("unknown outbound type: ", obCfg.Type, " for tag: ", obCfg.Tag)
 		}

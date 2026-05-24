@@ -6,6 +6,7 @@ import (
 
 	M "github.com/sagernet/sing/common/metadata"
 	singHTTP "github.com/sagernet/sing/protocol/http"
+	singSocks "github.com/sagernet/sing/protocol/socks"
 )
 
 type outboundDialer interface {
@@ -34,3 +35,14 @@ func (h *httpOutbound) DialContext(ctx context.Context, network string, destinat
 }
 
 func (h *httpOutbound) Tag() string { return h.tag }
+
+type socks5Outbound struct {
+	tag    string
+	client *singSocks.Client
+}
+
+func (s *socks5Outbound) DialContext(ctx context.Context, network string, destination M.Socksaddr) (net.Conn, error) {
+	return s.client.DialContext(ctx, network, destination)
+}
+
+func (s *socks5Outbound) Tag() string { return s.tag }
