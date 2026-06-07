@@ -31,9 +31,10 @@ func main() {
 	//   2. 配置 UpstreamProxy 为 echo（如 127.0.0.1:8888）
 	//   请求流程：应用 -> 其他代理(8899) -> echo(8888) -> UpstreamProxy -> 目标
 	echo_proxy, err := echo.NewEchoWithOptions(cert_file, private_key_file, &echo.Options{
-		EnableBuiltinBypass:  false,
-		InterceptOnlyMatched: true,
+		// EnableBuiltinBypass:  false,
+		// InterceptOnlyMatched: true,
 		// UpstreamProxy: "http://127.0.0.1:7890", // 启用上游代理（如 Clash、V2Ray 等）
+		EnableBuiltinBypass:  true, // InterceptOnlyMatched 模式下不需要内置 bypass 列表
 	})
 	if err != nil {
 		fmt.Println("Failed to start echo server", err)
@@ -99,10 +100,10 @@ func main() {
 	// })
 	// 用例5 转发请求
 	echo_proxy.AddPlugin(&echo.Plugin{
-		Match: "site1.funzm.fun",
+		Match: "media-t.funzm.com/pc",
 		Target: &echo.TargetConfig{
 			Host: "127.0.0.1",
-			Port: 8000,
+			Port: 3004,
 		},
 		OnResponse: func(ctx *echo.Context) {
 			res := ctx.Res
@@ -113,10 +114,10 @@ func main() {
 		},
 	})
 	echo_proxy.AddPlugin(&echo.Plugin{
-		Match: "site2.funzm.fun",
+		Match: "media-t.funzm.com/api",
 		Target: &echo.TargetConfig{
-			Host: "127.0.0.1",
-			Port: 3333,
+			Host: "192.168.1.118",
+			Port: 3200,
 		},
 		OnResponse: func(ctx *echo.Context) {
 			res := ctx.Res
