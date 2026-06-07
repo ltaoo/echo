@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/netip"
 	"runtime"
+	"strings"
 	"time"
 
 	tun "github.com/sagernet/sing-tun"
@@ -86,12 +87,10 @@ func New(cfg *TunConfig) (*Server, error) {
 // Start creates the TUN device, stack, and begins processing traffic.
 func (s *Server) Start() error {
 	// 1. Detect default physical interface
-	defaultIface := s.ifaceMonitor.DefaultInterface()
-	if defaultIface == nil {
-		dumpInterfaceDiagnostics("default interface missing before tun.Start", s.log)
-		return fmt.Errorf("no default network interface detected - check your network connection")
+	defaultIface, err := s.resolveDefaultInterface()
+	if err != nil {
+		return err
 	}
-	s.log.Info("detected default interface: ", defaultIface.Name, " (index ", defaultIface.Index, ")")
 
 	// 2. Build TUN options
 	tunOptions := tun.Options{
@@ -198,7 +197,9 @@ func (s *Server) Start() error {
 		dumpInterfaceDiagnostics("tun.Start failed", s.log)
 		return fmt.Errorf("tun.Start: %w", err)
 	}
-	if currentIface := s.ifaceMonitor.DefaultInterface(); currentIface != nil {
+	if strings.TrimSpace(s.cfg.Route.DefaultInterface) != "" {
+		s.log.Info("tun.Start bind interface: ", defaultIface.Name, " (index ", defaultIface.Index, ")")
+	} else if currentIface := s.ifaceMonitor.DefaultInterface(); currentIface != nil {
 		s.log.Info("tun.Start default interface: ", currentIface.Name, " (index ", currentIface.Index, ")")
 	} else {
 		s.log.Warn("tun.Start completed but default interface monitor is empty")
@@ -222,6 +223,31 @@ func (s *Server) Start() error {
 	s.log.Info("============================================")
 
 	return nil
+}
+
+func (s *Server) resolveDefaultInterface() (*control.Interface, error) {
+	configuredInterface := strings.TrimSpace(s.cfg.Route.DefaultInterface)
+	if configuredInterface != "" {
+		if err := s.ifaceFinder.Update(); err != nil {
+			dumpInterfaceDiagnostics("configured default_interface update failed", s.log)
+			return nil, fmt.Errorf("update interface finder for default_interface %q: %w", configuredInterface, err)
+		}
+		defaultIface, err := s.ifaceFinder.ByName(configuredInterface)
+		if err != nil {
+			dumpInterfaceDiagnostics("configured default_interface not found", s.log)
+			return nil, fmt.Errorf("default_interface %q not found: %w", configuredInterface, err)
+		}
+		s.log.Info("using configured default interface: ", defaultIface.Name, " (index ", defaultIface.Index, ")")
+		return defaultIface, nil
+	}
+
+	defaultIface := s.ifaceMonitor.DefaultInterface()
+	if defaultIface == nil {
+		dumpInterfaceDiagnostics("default interface missing before tun.Start", s.log)
+		return nil, fmt.Errorf("no default network interface detected - check your network connection")
+	}
+	s.log.Info("detected default interface: ", defaultIface.Name, " (index ", defaultIface.Index, ")")
+	return defaultIface, nil
 }
 
 // Close stops the TUN device and cleans up resources.

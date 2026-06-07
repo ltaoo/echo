@@ -4,10 +4,11 @@
 //
 // 用法（以管理员身份运行）:
 //
-//	go run ./_example/tun.go                         # 使用业务一致配置
-//	go run ./_example/tun.go -proxy-port 8899        # 指定本地 echo 代理端口
-//	go run ./_example/tun.go -upstream http://127.0.0.1:7890
-//	go run ./_example/tun.go -c config.json          # 从文件加载 TUN 配置
+//	go run ./_example/wxchannels.go                         # 使用业务一致配置
+//	go run ./_example/wxchannels.go -proxy-port 8899        # 指定本地 echo 代理端口
+//	go run ./_example/wxchannels.go -default-interface "Ethernet 2"
+//	go run ./_example/wxchannels.go -upstream http://127.0.0.1:7890
+//	go run ./_example/wxchannels.go -c config.json          # 从文件加载 TUN 配置
 //
 // 配置文件示例 (config.json):
 //
@@ -25,6 +26,7 @@
 //	    {"tag": "direct", "type": "direct"}
 //	  ],
 //	  "route": {
+//	    "default_interface": "Ethernet 2",
 //	    "rules": [
 //	      {"process_name": ["wx_video_download", "wx_video_download.exe", "wx_channel", "wx_channel.exe", "go", "go.exe", "main", "main.exe"], "outbound": "direct"},
 //	      {"process_name": ["WeChat", "WeChatAppEx", "WeChatAppEx.exe", "Weixin.exe", "WeChatAppEx Helper"], "outbound": "proxy"},
@@ -60,6 +62,7 @@ func main() {
 	configPath := flag.String("c", "", "path to tun config.json")
 	upstreamProxy := flag.String("upstream", "", "upstream proxy, e.g. http://127.0.0.1:7890 or socks5://127.0.0.1:1080")
 	proxyPort := flag.Int("proxy-port", 8899, "local echo HTTP proxy port")
+	defaultInterface := flag.String("default-interface", "", "bind TUN outbound traffic to this Windows interface, e.g. Ethernet 2")
 	flag.Parse()
 
 	// 1. Load or build TUN config
@@ -79,6 +82,13 @@ func main() {
 	setProxyOutboundPort(cfg, *proxyPort)
 	fmt.Printf("  outbounds: %d, rules: %d, final: %s\n",
 		len(cfg.Outbounds), len(cfg.Route.Rules), cfg.Route.Final)
+	effectiveDefaultInterface := cfg.Route.DefaultInterface
+	if *defaultInterface != "" {
+		effectiveDefaultInterface = *defaultInterface
+	}
+	if effectiveDefaultInterface != "" {
+		fmt.Printf("  default_interface: %s\n", effectiveDefaultInterface)
+	}
 
 	// 2. Create Echo with TUN enabled.
 	//    TUN 工作流程:
@@ -92,6 +102,7 @@ func main() {
 		UpstreamProxy:        *upstreamProxy,
 		Tun:                  true,
 		TunConfig:            cfg,
+		TunDefaultInterface:  *defaultInterface,
 	}
 	e, err := echo.NewEchoWithOptions(certFile, keyFile, opts)
 	if err != nil {

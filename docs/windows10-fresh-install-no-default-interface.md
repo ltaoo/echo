@@ -31,7 +31,7 @@ Wi-Fi           192.168.1.1
 如果没有 `0.0.0.0/0` 默认路由，先修 Windows 网络、DHCP 或路由器网关。
 
 
-```bash
+```text
 ifIndex DestinationPrefix                              NextHop                                  RouteMetric ifMetric PolicyStore
 ------- -----------------                              -------                                  ----------- -------- -----------
 15      0.0.0.0/0                                      192.168.1.1                                        0 25       ActiveStore
@@ -170,6 +170,56 @@ Detailed             : False
 
 ```
 
+本次真实输出分析：
+
+- 这份输出不是“没有 IPv4 默认网关”的情况，因为路由表里已经有两条 `0.0.0.0/0` 默认路由。
+- `Ethernet 2`，`ifIndex=15`，IPv4 地址是 `192.168.1.112`，默认网关是 `192.168.1.1`，`ifMetric=25`。这是当前最可信的真实默认出口。
+- `Wi-Fi`，`ifIndex=14`，虽然也有一条默认路由指向 `192.168.1.1`，但它自己的 IPv4 地址是 `169.254.112.189`。`169.254.0.0/16` 是 Windows 在 DHCP 失败时分配的 APIPA 自分配地址，通常不能正常访问 `192.168.1.1`。这条 Wi-Fi 默认路由很可疑，建议优先断开或禁用 Wi-Fi，避免干扰默认接口判断。
+- `CorpLink TAP-Windows6`，`ifIndex=13`，地址是 `192.168.77.227`，但没有 `IPv4DefaultGateway`，更像企业 VPN/TAP 虚拟网卡或分流网卡，不是当前默认公网出口。
+- `Tailscale`，`ifIndex=30`，地址是 `100.123.19.123`，也没有 `IPv4DefaultGateway`，说明它当前没有接管 `0.0.0.0/0` 默认路由。
+- `Bluetooth Network Connection` 和 `Ethernet 3` 都是 `169.254.x.x` 自分配地址，没有默认网关，不能作为有效默认出口。
+
+因此，这台机器的网络状态更准确地说是：存在有效默认路由，真实出口应为 `Ethernet 2`；同时存在多个虚拟网卡和多个异常自分配地址网卡。如果程序仍然报 `no default network interface detected`，优先怀疑程序启动时网络还没初始化完成，或者程序运行时看到的路由状态和这份手动输出不同。
+
+建议补充检查：
+
+```powershell
+Get-NetAdapter |
+  Format-Table ifIndex, Name, InterfaceDescription, Status
+
+Find-NetRoute -RemoteIPAddress 8.8.8.8
+
+Get-NetRoute -AddressFamily IPv4 -DestinationPrefix 0.0.0.0/0 |
+  Sort-Object RouteMetric, InterfaceMetric |
+  Format-Table ifIndex, InterfaceAlias, NextHop, RouteMetric, InterfaceMetric
+```
+
+处理建议：
+
+1. 如果当前使用有线网络，临时禁用 Wi-Fi、Bluetooth Network Connection、Ethernet 3，只保留 `Ethernet 2` 后重试。
+2. 暂时退出 `CorpLink TAP-Windows6` 对应的 VPN 客户端和 Tailscale 后重试，确认是否存在虚拟网卡干扰。
+3. 如果程序是开机自启动，改成网络连通后延迟启动；这份输出说明网络最终能获得默认路由，但不能证明程序启动瞬间也已经获得。
+4. 启动程序时观察新增诊断日志里的 `diagnostic ipv4 default routes`。如果诊断日志里没有 `Ethernet 2 -> 192.168.1.1`，说明程序启动时确实没看到有效默认路由。
+5. 如果诊断日志里有 `Ethernet 2 -> 192.168.1.1` 但仍报错，需要继续检查 TUN 默认接口监控和 Windows 接口枚举是否能按 `ifIndex=15` 找到 `Ethernet 2`。
+
+项目级兜底方案：
+
+如果确认真实出口就是 `Ethernet 2`，可以在初始化 Echo 时显式指定 TUN 默认接口，绕过自动检测：
+
+```go
+echo.NewEchoWithOptions(certFile, keyFile, &echo.Options{
+    Tun:                 true,
+    TunConfig:           cfg,
+    TunDefaultInterface: "Ethernet 2",
+})
+```
+
+也可以在 `wxchannels` 示例中通过命令行指定：
+
+```powershell
+go run ./_example/wxchannels.go -default-interface "Ethernet 2"
+```
+
 ### 2. 只有 IPv6 默认路由，没有 IPv4 默认路由
 
 部分公司网络、校园网或特殊网络环境可能 IPv6 可用，但 IPv4 没有默认路由。
@@ -288,4 +338,3 @@ diagnostic tun split routes
 4. 如果没有默认路由，检查 DHCP、默认网关、静态 IP 配置。
 5. 如果是开机自启动问题，改为延迟启动或网络连上后重启。
 6. 如果默认路由存在但程序仍报错，查看程序诊断日志中的默认路由和网卡列表。
-

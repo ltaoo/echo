@@ -37,8 +37,9 @@ type OutboundConfig struct {
 
 // RouteConfig holds routing rules and default outbound.
 type RouteConfig struct {
-	Rules []RuleConfig `json:"rules"`
-	Final string       `json:"final"`
+	Rules            []RuleConfig `json:"rules"`
+	Final            string       `json:"final"`
+	DefaultInterface string       `json:"default_interface,omitempty"`
 }
 
 // RuleConfig defines a single routing rule.

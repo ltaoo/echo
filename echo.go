@@ -125,6 +125,11 @@ type Options struct {
 	// TunConfig is the TUN configuration. Only used when Tun is true.
 	// Can be loaded from a file via tun.LoadConfig() or built programmatically.
 	TunConfig *tun.TunConfig
+
+	// TunDefaultInterface overrides TunConfig.Route.DefaultInterface.
+	// Use this as an initialization-level fallback when automatic default
+	// interface detection fails on multi-adapter Windows machines.
+	TunDefaultInterface string
 }
 
 func NewEcho(certFile []byte, certKey []byte) (*Echo, error) {
@@ -182,6 +187,9 @@ func NewEchoWithOptions(certFile []byte, certKey []byte, opts *Options) (*Echo, 
 		cfg := opts.TunConfig
 		if cfg == nil {
 			cfg = tun.DefaultConfig()
+		}
+		if defaultInterface := strings.TrimSpace(opts.TunDefaultInterface); defaultInterface != "" {
+			cfg.Route.DefaultInterface = defaultInterface
 		}
 		// If upstream proxy is configured, route unmatched traffic through it
 		// instead of direct, so VPN/proxy users don't experience routing conflicts.
