@@ -11,6 +11,8 @@ func addTunRoutes(tunName string, log logger.Logger) {}
 
 func removeTunRoutes() {}
 
+func dumpInterfaceDiagnostics(stage string, log logger.Logger) {}
+
 func startRouteMonitor(networkMonitor tun.NetworkUpdateMonitor, tunName string, log logger.Logger) chan struct{} {
 	stop := make(chan struct{})
 	close(stop)

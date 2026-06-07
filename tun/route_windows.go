@@ -102,6 +102,31 @@ func dumpRoutes() {
 	fmt.Fprintf(logWriter, "[debug] Active default routes:\n%s\n", string(out))
 }
 
+func dumpInterfaceDiagnostics(stage string, log logger.Logger) {
+	log.Info("network interface diagnostics: ", stage)
+	dumpPowerShellDiagnostic(log, "active adapters",
+		"Get-NetAdapter | Where-Object {$_.Status -eq 'Up'} | Sort-Object ifIndex | Select-Object ifIndex,Name,InterfaceDescription,Status,LinkSpeed | Format-Table -AutoSize | Out-String -Width 240")
+	dumpPowerShellDiagnostic(log, "ipv4 interface metrics",
+		"Get-NetIPInterface -AddressFamily IPv4 | Sort-Object InterfaceMetric | Select-Object ifIndex,InterfaceAlias,InterfaceMetric,ConnectionState,Dhcp | Format-Table -AutoSize | Out-String -Width 240")
+	dumpPowerShellDiagnostic(log, "ipv4 default routes",
+		"Get-NetRoute -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/0' -ErrorAction SilentlyContinue | Sort-Object RouteMetric,InterfaceMetric | Select-Object ifIndex,InterfaceAlias,NextHop,RouteMetric,InterfaceMetric | Format-Table -AutoSize | Out-String -Width 240")
+	dumpPowerShellDiagnostic(log, "tun split routes",
+		"Get-NetRoute -AddressFamily IPv4 -DestinationPrefix '0.0.0.0/1','128.0.0.0/1' -ErrorAction SilentlyContinue | Select-Object DestinationPrefix,ifIndex,InterfaceAlias,NextHop,RouteMetric,InterfaceMetric | Format-Table -AutoSize | Out-String -Width 240")
+}
+
+func dumpPowerShellDiagnostic(log logger.Logger, title string, psCmd string) {
+	out, err := exec.Command("powershell", "-NoProfile", "-Command", psCmd).Output()
+	if err != nil {
+		log.Debug("diagnostic ", title, " failed: ", err)
+		return
+	}
+	text := strings.TrimSpace(string(out))
+	if text == "" {
+		text = "(empty)"
+	}
+	log.Info("diagnostic ", title, ":\n", text)
+}
+
 // detectDefaultGateway returns the first non-zero default gateway for IPv4.
 func detectDefaultGateway() string {
 	out, err := exec.Command("powershell", "-NoProfile", "-Command",

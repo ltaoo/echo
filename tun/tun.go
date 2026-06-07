@@ -19,15 +19,15 @@ import (
 
 // Server manages the TUN device lifecycle and traffic routing.
 type Server struct {
-	cfg             *TunConfig
-	log             logger.Logger
-	searcher        *routerhandler.CachedSearcher
-	ifaceFinder     control.InterfaceFinder
-	networkMonitor  tun.NetworkUpdateMonitor
-	ifaceMonitor    tun.DefaultInterfaceMonitor
-	tunIf           tun.Tun
-	tunStack        tun.Stack
-	routeStop       chan struct{}
+	cfg            *TunConfig
+	log            logger.Logger
+	searcher       *routerhandler.CachedSearcher
+	ifaceFinder    control.InterfaceFinder
+	networkMonitor tun.NetworkUpdateMonitor
+	ifaceMonitor   tun.DefaultInterfaceMonitor
+	tunIf          tun.Tun
+	tunStack       tun.Stack
+	routeStop      chan struct{}
 }
 
 // New creates a new TUN Server from config. Does NOT start the TUN device yet.
@@ -88,6 +88,7 @@ func (s *Server) Start() error {
 	// 1. Detect default physical interface
 	defaultIface := s.ifaceMonitor.DefaultInterface()
 	if defaultIface == nil {
+		dumpInterfaceDiagnostics("default interface missing before tun.Start", s.log)
 		return fmt.Errorf("no default network interface detected - check your network connection")
 	}
 	s.log.Info("detected default interface: ", defaultIface.Name, " (index ", defaultIface.Index, ")")
@@ -194,8 +195,15 @@ func (s *Server) Start() error {
 	}
 	if err := tunIf.Start(); err != nil {
 		tunStack.Close()
+		dumpInterfaceDiagnostics("tun.Start failed", s.log)
 		return fmt.Errorf("tun.Start: %w", err)
 	}
+	if currentIface := s.ifaceMonitor.DefaultInterface(); currentIface != nil {
+		s.log.Info("tun.Start default interface: ", currentIface.Name, " (index ", currentIface.Index, ")")
+	} else {
+		s.log.Warn("tun.Start completed but default interface monitor is empty")
+	}
+	dumpInterfaceDiagnostics("after tun.Start", s.log)
 
 	// 9. Windows route management
 	if runtime.GOOS == "windows" {
