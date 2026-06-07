@@ -30,6 +30,146 @@ Wi-Fi           192.168.1.1
 
 如果没有 `0.0.0.0/0` 默认路由，先修 Windows 网络、DHCP 或路由器网关。
 
+
+```bash
+ifIndex DestinationPrefix                              NextHop                                  RouteMetric ifMetric PolicyStore
+------- -----------------                              -------                                  ----------- -------- -----------
+15      0.0.0.0/0                                      192.168.1.1                                        0 25       ActiveStore
+14      0.0.0.0/0                                      192.168.1.1                                        0 35       ActiveStore
+
+ComputerName         : WINDOWS-FS58B39
+InterfaceAlias       : CorpLink TAP-Windows6
+InterfaceIndex       : 13
+InterfaceDescription : TAP-Windows Adapter V9
+CompartmentId        : 1
+NetAdapter           : MSFT_NetAdapter (CreationClassName = "MSFT_NetAdapter", DeviceID = "{4504F743-1ECD-4D33-A79C-765DFA671808}", SystemCreationClassName = "CIM_NetworkPort", SystemName = "WINDOWS-FS58B39")
+NetCompartment       : MSFT_NetCompartment (InstanceID = ";55;")
+NetIPv6Interface     : MSFT_NetIPInterface (Name = ";?55??55;", CreationClassName = "", SystemCreationClassName = "", SystemName = "")
+NetIPv4Interface     : MSFT_NetIPInterface (Name = ";?55?55;", CreationClassName = "", SystemCreationClassName = "", SystemName = "")
+NetProfile           : MSFT_NetConnectionProfile (InstanceID = "{4504F743-1ECD-4D33-A79C-765DFA671808}")
+AllIPAddresses       : {192.168.77.227, fe80:abcd::abcd:1%13}
+IPv6Address          : {fe80:abcd::abcd:1%13}
+IPv6TemporaryAddress : {}
+IPv6LinkLocalAddress : {}
+IPv4Address          : {192.168.77.227}
+IPv6DefaultGateway   :
+IPv4DefaultGateway   :
+DNSServer            : {MSFT_DNSClientServerAddress (Name = "13", CreationClassName = "", SystemCreationClassName = "", SystemName = "23"), MSFT_DNSClientServerAddress (Name = "13", CreationClassName = "", SystemCreationClassName = "",
+                       SystemName = "2")}
+Detailed             : False
+
+
+ComputerName         : WINDOWS-FS58B39
+InterfaceAlias       : Ethernet 2
+InterfaceIndex       : 15
+InterfaceDescription : Intel(R) Ethernet Controller I226-V
+CompartmentId        : 1
+NetAdapter           : MSFT_NetAdapter (CreationClassName = "MSFT_NetAdapter", DeviceID = "{8213F5F9-C8E1-46DF-903B-126755C339F2}", SystemCreationClassName = "CIM_NetworkPort", SystemName = "WINDOWS-FS58B39")
+NetCompartment       : MSFT_NetCompartment (InstanceID = ";55;")
+NetIPv6Interface     : MSFT_NetIPInterface (Name = ";?55??55;", CreationClassName = "", SystemCreationClassName = "", SystemName = "")
+NetIPv4Interface     : MSFT_NetIPInterface (Name = ";?55?55;", CreationClassName = "", SystemCreationClassName = "", SystemName = "")
+NetProfile           : MSFT_NetConnectionProfile (InstanceID = "{8213F5F9-C8E1-46DF-903B-126755C339F2}")
+AllIPAddresses       : {192.168.1.112, fe80::a32c:329:9045:18f%15}
+IPv6Address          : {}
+IPv6TemporaryAddress : {}
+IPv6LinkLocalAddress : {fe80::a32c:329:9045:18f%15}
+IPv4Address          : {192.168.1.112}
+IPv6DefaultGateway   :
+IPv4DefaultGateway   : {MSFT_NetRoute (InstanceID = ":8:8:8:9:55;?55;C?8;@B8;8;55;")}
+DNSServer            : {MSFT_DNSClientServerAddress (Name = "15", CreationClassName = "", SystemCreationClassName = "", SystemName = "23"), MSFT_DNSClientServerAddress (Name = "15", CreationClassName = "", SystemCreationClassName = "",
+                       SystemName = "2")}
+Detailed             : False
+
+
+ComputerName         : WINDOWS-FS58B39
+InterfaceAlias       : Tailscale
+InterfaceIndex       : 30
+InterfaceDescription : Tailscale Tunnel
+CompartmentId        : 1
+NetAdapter           : MSFT_NetAdapter (CreationClassName = "MSFT_NetAdapter", DeviceID = "{37217669-42DA-4657-A55B-0D995D328250}", SystemCreationClassName = "CIM_NetworkPort", SystemName = "WINDOWS-FS58B39")
+NetCompartment       : MSFT_NetCompartment (InstanceID = ";55;")
+NetIPv6Interface     : MSFT_NetIPInterface (Name = "?:55??55;", CreationClassName = "", SystemCreationClassName = "", SystemName = "")
+NetIPv4Interface     : MSFT_NetIPInterface (Name = "?:55?55;", CreationClassName = "", SystemCreationClassName = "", SystemName = "")
+NetProfile           : MSFT_NetConnectionProfile (InstanceID = "{37217669-42DA-4657-A55B-0D995D328250}")
+AllIPAddresses       : {100.123.19.123, fd7a:115c:a1e0::1e35:137b, fe80::d8ff:5060:f230:9168%30}
+IPv6Address          : {fd7a:115c:a1e0::1e35:137b}
+IPv6TemporaryAddress : {}
+IPv6LinkLocalAddress : {fe80::d8ff:5060:f230:9168%30}
+IPv4Address          : {100.123.19.123}
+IPv6DefaultGateway   :
+IPv4DefaultGateway   :
+DNSServer            : {MSFT_DNSClientServerAddress (Name = "30", CreationClassName = "", SystemCreationClassName = "", SystemName = "23"), MSFT_DNSClientServerAddress (Name = "30", CreationClassName = "", SystemCreationClassName = "",
+                       SystemName = "2")}
+Detailed             : False
+
+
+ComputerName         : WINDOWS-FS58B39
+InterfaceAlias       : Wi-Fi
+InterfaceIndex       : 14
+InterfaceDescription : Intel(R) Wi-Fi 6 AX200 160MHz
+CompartmentId        : 1
+NetAdapter           : MSFT_NetAdapter (CreationClassName = "MSFT_NetAdapter", DeviceID = "{56DB9F8D-4353-4EA1-927F-A7CF18A90A46}", SystemCreationClassName = "CIM_NetworkPort", SystemName = "WINDOWS-FS58B39")
+NetCompartment       : MSFT_NetCompartment (InstanceID = ";55;")
+NetIPv6Interface     : MSFT_NetIPInterface (Name = ";?55??55;", CreationClassName = "", SystemCreationClassName = "", SystemName = "")
+NetIPv4Interface     : MSFT_NetIPInterface (Name = ";?55?55;", CreationClassName = "", SystemCreationClassName = "", SystemName = "")
+NetProfile           :
+AllIPAddresses       : {169.254.112.189, fe80::4999:6e8:c1cf:6c25%14}
+IPv6Address          : {}
+IPv6TemporaryAddress : {}
+IPv6LinkLocalAddress : {fe80::4999:6e8:c1cf:6c25%14}
+IPv4Address          : {169.254.112.189}
+IPv6DefaultGateway   :
+IPv4DefaultGateway   : {MSFT_NetRoute (InstanceID = ":8:8:8:9:55;?55;C?8;@B8;8;55;")}
+DNSServer            : {MSFT_DNSClientServerAddress (Name = "14", CreationClassName = "", SystemCreationClassName = "", SystemName = "23"), MSFT_DNSClientServerAddress (Name = "14", CreationClassName = "", SystemCreationClassName = "",
+                       SystemName = "2")}
+Detailed             : False
+
+
+ComputerName         : WINDOWS-FS58B39
+InterfaceAlias       : Bluetooth Network Connection
+InterfaceIndex       : 3
+InterfaceDescription : Bluetooth Device (Personal Area Network)
+CompartmentId        : 1
+NetAdapter           : MSFT_NetAdapter (CreationClassName = "MSFT_NetAdapter", DeviceID = "{00E045F1-7D35-432D-87BE-6170A4BF2D66}", SystemCreationClassName = "CIM_NetworkPort", SystemName = "WINDOWS-FS58B39")
+NetCompartment       : MSFT_NetCompartment (InstanceID = ";55;")
+NetIPv6Interface     : MSFT_NetIPInterface (Name = "?55??55;", CreationClassName = "", SystemCreationClassName = "", SystemName = "")
+NetIPv4Interface     : MSFT_NetIPInterface (Name = "?55?55;", CreationClassName = "", SystemCreationClassName = "", SystemName = "")
+NetProfile           :
+AllIPAddresses       : {169.254.17.7, fe80::6281:4363:bb35:a0b4%3}
+IPv6Address          : {}
+IPv6TemporaryAddress : {}
+IPv6LinkLocalAddress : {fe80::6281:4363:bb35:a0b4%3}
+IPv4Address          : {169.254.17.7}
+IPv6DefaultGateway   :
+IPv4DefaultGateway   :
+DNSServer            : {MSFT_DNSClientServerAddress (Name = "3", CreationClassName = "", SystemCreationClassName = "", SystemName = "23"), MSFT_DNSClientServerAddress (Name = "3", CreationClassName = "", SystemCreationClassName = "",
+                       SystemName = "2")}
+Detailed             : False
+
+
+ComputerName         : WINDOWS-FS58B39
+InterfaceAlias       : Ethernet 3
+InterfaceIndex       : 16
+InterfaceDescription : Intel(R) Ethernet Controller I226-V #2
+CompartmentId        : 1
+NetAdapter           : MSFT_NetAdapter (CreationClassName = "MSFT_NetAdapter", DeviceID = "{8C57A83A-8669-4207-A2F9-C0EC9BD2789E}", SystemCreationClassName = "CIM_NetworkPort", SystemName = "WINDOWS-FS58B39")
+NetCompartment       : MSFT_NetCompartment (InstanceID = ";55;")
+NetIPv6Interface     : MSFT_NetIPInterface (Name = ";@55??55;", CreationClassName = "", SystemCreationClassName = "", SystemName = "")
+NetIPv4Interface     : MSFT_NetIPInterface (Name = ";@55?55;", CreationClassName = "", SystemCreationClassName = "", SystemName = "")
+NetProfile           :
+AllIPAddresses       : {169.254.23.187, fe80::c176:3474:768f:ab91%16}
+IPv6Address          : {}
+IPv6TemporaryAddress : {}
+IPv6LinkLocalAddress : {fe80::c176:3474:768f:ab91%16}
+IPv4Address          : {169.254.23.187}
+IPv6DefaultGateway   :
+IPv4DefaultGateway   :
+DNSServer            : {MSFT_DNSClientServerAddress (Name = "16", CreationClassName = "", SystemCreationClassName = "", SystemName = "23"), MSFT_DNSClientServerAddress (Name = "16", CreationClassName = "", SystemCreationClassName = "",
+                       SystemName = "2")}
+Detailed             : False
+
+```
+
 ### 2. 只有 IPv6 默认路由，没有 IPv4 默认路由
 
 部分公司网络、校园网或特殊网络环境可能 IPv6 可用，但 IPv4 没有默认路由。
