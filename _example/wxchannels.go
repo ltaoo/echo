@@ -4,8 +4,10 @@
 //
 // 用法（以管理员身份运行）:
 //
-//	go run ./_example/tun.go                    # 使用 demo 配置
-//	go run ./_example/tun.go -c config.json     # 从文件加载配置
+//	go run ./_example/tun.go                         # 使用业务一致配置
+//	go run ./_example/tun.go -proxy-port 8899        # 指定本地 echo 代理端口
+//	go run ./_example/tun.go -upstream http://127.0.0.1:7890
+//	go run ./_example/tun.go -c config.json          # 从文件加载 TUN 配置
 //
 // 配置文件示例 (config.json):
 //
@@ -24,7 +26,8 @@
 //	  ],
 //	  "route": {
 //	    "rules": [
-//	      {"process_name": ["WeChat.exe"], "outbound": "proxy"},
+//	      {"process_name": ["wx_video_download", "wx_video_download.exe", "wx_channel", "wx_channel.exe", "go", "go.exe", "main", "main.exe"], "outbound": "direct"},
+//	      {"process_name": ["WeChat", "WeChatAppEx", "WeChatAppEx.exe", "Weixin.exe", "WeChatAppEx Helper"], "outbound": "proxy"},
 //	      {"domain_suffix": ["qq.com"], "outbound": "proxy"}
 //	    ],
 //	    "final": "direct"
@@ -55,6 +58,8 @@ var keyFile []byte
 
 func main() {
 	configPath := flag.String("c", "", "path to tun config.json")
+	upstreamProxy := flag.String("upstream", "", "upstream proxy, e.g. http://127.0.0.1:7890 or socks5://127.0.0.1:1080")
+	proxyPort := flag.Int("proxy-port", 8899, "local echo HTTP proxy port")
 	flag.Parse()
 
 	// 1. Load or build TUN config
@@ -68,21 +73,10 @@ func main() {
 		}
 		fmt.Printf("Loaded config from %s\n", *configPath)
 	} else {
-		cfg = tun.DefaultConfig()
-		// Demo rules
-		cfg.Route.Rules = []tun.RuleConfig{
-			{
-				ProcessName: []string{"WeChat.exe", "WeChatAppEx.exe", "Weixin.exe"},
-				Outbound:    "proxy",
-			},
-			{
-				DomainSuffix: []string{"qq.com"},
-				Outbound:     "proxy",
-			},
-		}
-		cfg.Route.Final = "direct"
-		fmt.Println("Using demo config")
+		cfg = businessTunConfig(*proxyPort)
+		fmt.Println("Using business-compatible TUN config")
 	}
+	setProxyOutboundPort(cfg, *proxyPort)
 	fmt.Printf("  outbounds: %d, rules: %d, final: %s\n",
 		len(cfg.Outbounds), len(cfg.Route.Rules), cfg.Route.Final)
 
@@ -92,11 +86,14 @@ func main() {
 	//    b. 对每条 TCP 连接: 查找进程 → SNI 嗅探域名 → 匹配规则 → 转发到对应出站
 	//    c. proxy 出站 → echo HTTP 代理 (127.0.0.1:8899)
 	//    d. direct 出站 → 绑定物理网卡直连
-	e, err := echo.NewEchoWithOptions(certFile, keyFile, &echo.Options{
+	opts := &echo.Options{
+		EnableBuiltinBypass:  false,
 		InterceptOnlyMatched: true,
+		UpstreamProxy:        *upstreamProxy,
 		Tun:                  true,
 		TunConfig:            cfg,
-	})
+	}
+	e, err := echo.NewEchoWithOptions(certFile, keyFile, opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "create echo: %v\n", err)
 		os.Exit(1)
@@ -105,7 +102,7 @@ func main() {
 
 	// 3. Start HTTP proxy server.
 	//    TUN 中 proxy 出站的目标必须与此地址一致。
-	proxyAddr := "127.0.0.1:8899"
+	proxyAddr := fmt.Sprintf("127.0.0.1:%d", *proxyPort)
 	server := &http.Server{
 		Addr: proxyAddr,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -122,6 +119,9 @@ func main() {
 	fmt.Println("============================================")
 	fmt.Println("Echo TUN forwarder running")
 	fmt.Printf("  HTTP proxy: %s\n", proxyAddr)
+	if *upstreamProxy != "" {
+		fmt.Printf("  upstream:   %s\n", *upstreamProxy)
+	}
 	fmt.Println("  TUN mode:   process-based traffic forwarding")
 	fmt.Println("Press Ctrl+C to stop")
 	fmt.Println("============================================")
@@ -134,4 +134,55 @@ func main() {
 	fmt.Println("\nShutting down...")
 	server.Close()
 	fmt.Println("Done.")
+}
+
+func businessTunConfig(proxyPort int) *tun.TunConfig {
+	cfg := tun.DefaultConfig()
+	cfg.Inbound.AutoRoute = true
+	cfg.Inbound.StrictRoute = true
+	setProxyOutboundPort(cfg, proxyPort)
+	cfg.Route = tun.RouteConfig{
+		Rules: []tun.RuleConfig{
+			// Highest priority: self-process direct to avoid loopback.
+			{
+				ProcessName: []string{
+					"wx_video_download",
+					"wx_video_download.exe",
+					"wx_channel",
+					"wx_channel.exe",
+					"go",
+					"go.exe",
+					"main",
+					"main.exe",
+				},
+				Outbound: "direct",
+			},
+			// WeChat processes through proxy.
+			{
+				ProcessName: []string{
+					"WeChat",
+					"WeChatAppEx",
+					"WeChatAppEx.exe",
+					"Weixin.exe",
+					"WeChatAppEx Helper",
+				},
+				Outbound: "proxy",
+			},
+			// qq.com domains through proxy.
+			{
+				DomainSuffix: []string{"qq.com"},
+				Outbound:     "proxy",
+			},
+		},
+		Final: "direct",
+	}
+	return cfg
+}
+
+func setProxyOutboundPort(cfg *tun.TunConfig, proxyPort int) {
+	for i := range cfg.Outbounds {
+		if cfg.Outbounds[i].Tag == "proxy" {
+			cfg.Outbounds[i].Port = uint16(proxyPort)
+		}
+	}
 }

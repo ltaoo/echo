@@ -34,6 +34,68 @@ route print -4
 
 重点看 `0.0.0.0` 这一行对应的接口和 metric。
 
+## 本次用例分析
+
+用户执行快速判断命令后得到：
+
+```text
+ifIndex InterfaceAlias NextHop     RouteMetric InterfaceMetric
+------- -------------- -------     ----------- ---------------
+     53 Meta           198.18.0.2            0
+     15 Ethernet 2     192.168.1.1           0 25
+     14 Wi-Fi          192.168.1.1           0 35
+```
+
+结论：
+
+- `Meta` 排在默认路由列表最前面，并且下一跳是 `198.18.0.2`。
+- `198.18.0.0/15` 常见于代理/TUN/FakeIP 场景，不是真实家庭路由器网关。
+- 真实网关是 `192.168.1.1`，对应 `Ethernet 2` 和 `Wi-Fi`。
+- `Ethernet 2` 的 `InterfaceMetric` 是 `25`，优先级高于 `Wi-Fi` 的 `35`，所以如果有线网可用，真实出口网卡应优先选 `Ethernet 2`。
+
+这个用例基本可以判断为：`Meta` 虚拟网卡抢在真实网卡前面成为默认路由，sing-tun/sing-box 启动时把 `Meta` 当成默认出口，容易导致找不到可用上游接口或形成路由回环。
+
+推荐处理：
+
+1. 如果 `Meta` 来自另一个正在运行的代理/VPN 客户端，先退出该客户端，再重启当前 sing-box/sing-tun。
+2. 如果必须保留其它虚拟网卡，显式指定真实出口网卡：
+
+```json
+{
+  "route": {
+    "auto_detect_interface": false,
+    "default_interface": "Ethernet 2"
+  }
+}
+```
+
+如果当前实际使用 Wi-Fi 而不是有线网络，则改为：
+
+```json
+{
+  "route": {
+    "auto_detect_interface": false,
+    "default_interface": "Wi-Fi"
+  }
+}
+```
+
+3. 如果 `Meta` 是旧客户端残留的虚拟网卡或残留路由，优先通过对应客户端退出、断开或卸载；确认无业务依赖后再考虑禁用该网卡：
+
+```powershell
+Disable-NetAdapter -Name "Meta" -Confirm:$false
+```
+
+4. 如果只是优先级问题，可以把真实出口网卡 metric 调低、把 `Meta` 调高：
+
+```powershell
+Set-NetIPInterface -InterfaceAlias "Ethernet 2" -InterfaceMetric 10
+Set-NetIPInterface -InterfaceAlias "Wi-Fi" -InterfaceMetric 20
+Set-NetIPInterface -InterfaceAlias "Meta" -InterfaceMetric 500
+```
+
+改完后重新执行快速判断命令，确认 `Ethernet 2` 或 `Wi-Fi` 排在 `Meta` 前面，再重启 sing-box/sing-tun。
+
 ## 可能原因
 
 ### 1. 系统没有有效默认网关
@@ -154,4 +216,3 @@ sing-box 早期版本曾修复过 Windows 下 `auto_detect_interface` 默认接�
 
 - Route 配置：<https://sing-box.sagernet.org/configuration/route/>
 - TUN 入站配置：<https://sing-box.sagernet.org/configuration/inbound/tun/>
-
