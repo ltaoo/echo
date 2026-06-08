@@ -40,6 +40,9 @@ func (l *PluginLoader) GetPlugins() []*Plugin {
 // MatchPlugin finds the first plugin that matches the given hostname
 func (l *PluginLoader) MatchPlugin(hostname string) *Plugin {
 	for i := range l.plugins {
+		if l.plugins[i].Disabled {
+			continue
+		}
 		if matchHostname(hostname, l.plugins[i].Match) {
 			return l.plugins[i]
 		}
@@ -51,6 +54,9 @@ func (l *PluginLoader) MatchPlugin(hostname string) *Plugin {
 func (l *PluginLoader) MatchPlugins(hostname string) []*Plugin {
 	var matches []*Plugin
 	for i := range l.plugins {
+		if l.plugins[i].Disabled {
+			continue
+		}
 		if matchHostname(hostname, l.plugins[i].Match) {
 			matches = append(matches, l.plugins[i])
 		}
@@ -131,6 +137,9 @@ func (l *PluginLoader) MatchPluginForRequest(r *http.Request) *Plugin {
 	}
 
 	for i := range l.plugins {
+		if l.plugins[i].Disabled {
+			continue
+		}
 		pattern := l.plugins[i].Match
 		if containsScheme(pattern) || strings.Contains(pattern, "/") {
 			if IsMatch(fullURL, pattern) {
@@ -171,6 +180,9 @@ func (l *PluginLoader) MatchPluginsForRequest(r *http.Request) []*Plugin {
 
 	var matches []*Plugin
 	for i := range l.plugins {
+		if l.plugins[i].Disabled {
+			continue
+		}
 		pattern := l.plugins[i].Match
 		if containsScheme(pattern) || strings.Contains(pattern, "/") {
 			if IsMatch(fullURL, pattern) {

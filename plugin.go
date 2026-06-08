@@ -14,6 +14,7 @@ type Plugin struct {
 	Target       *TargetConfig
 	MockResponse *MockResponse
 	Bypass       bool // If true, skip MITM and tunnel directly
+	Disabled     bool // If true, the plugin is ignored by matchers
 
 	// Hooks
 	OnRequest  func(ctx *Context)

@@ -1,6 +1,7 @@
 package echo_test
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/ltaoo/echo"
@@ -39,5 +40,56 @@ func TestIsMatch(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			assertMatch(t, c.hostname, c.pattern, c.expected)
 		})
+	}
+}
+
+func TestPluginLoaderSkipsDisabledPlugins(t *testing.T) {
+	disabled := &echo.Plugin{
+		Match:    "example.com",
+		Disabled: true,
+	}
+	enabled := &echo.Plugin{
+		Match: "example.com",
+	}
+	loader, err := echo.NewPluginLoader([]*echo.Plugin{disabled, enabled})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := loader.MatchPlugin("example.com"); got != enabled {
+		t.Fatalf("expected enabled plugin, got %#v", got)
+	}
+
+	matches := loader.MatchPlugins("example.com")
+	if len(matches) != 1 || matches[0] != enabled {
+		t.Fatalf("expected only enabled plugin, got %#v", matches)
+	}
+}
+
+func TestPluginLoaderSkipsDisabledRequestPlugins(t *testing.T) {
+	disabled := &echo.Plugin{
+		Match:    "https://example.com/api/*",
+		Disabled: true,
+	}
+	enabled := &echo.Plugin{
+		Match: "https://example.com/api/*",
+	}
+	loader, err := echo.NewPluginLoader([]*echo.Plugin{disabled, enabled})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, err := http.NewRequest(http.MethodGet, "https://example.com/api/users", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := loader.MatchPluginForRequest(req); got != enabled {
+		t.Fatalf("expected enabled plugin, got %#v", got)
+	}
+
+	matches := loader.MatchPluginsForRequest(req)
+	if len(matches) != 1 || matches[0] != enabled {
+		t.Fatalf("expected only enabled plugin, got %#v", matches)
 	}
 }
