@@ -125,8 +125,8 @@ func (r *TCPRelay) handleConnection(clientConn net.Conn) {
 // handleCONNECT parses the TLS ClientHello SNI, sends a CONNECT request to
 // Echo, then relays raw bytes bidirectionally.
 func (r *TCPRelay) handleCONNECT(clientConn, echoConn net.Conn, clientReader *bufio.Reader) {
-	peeked, err := clientReader.Peek(tcpRelayPeekSize)
-	if err != nil && len(peeked) == 0 {
+	peeked, err := peekTLSClientHello(clientReader)
+	if err != nil {
 		log.Printf("[tcp_relay] failed to peek TLS data: %v", err)
 		return
 	}
@@ -172,6 +172,24 @@ func (r *TCPRelay) handleCONNECT(clientConn, echoConn net.Conn, clientReader *bu
 	}
 
 	biRelay(clientConn, echoConn, clientReader, echoIn)
+}
+
+func peekTLSClientHello(clientReader *bufio.Reader) ([]byte, error) {
+	header, err := clientReader.Peek(5)
+	if err != nil {
+		return nil, err
+	}
+	if header[0] != 0x16 {
+		return nil, fmt.Errorf("not a TLS handshake record: 0x%02x", header[0])
+	}
+
+	recordLen := int(binary.BigEndian.Uint16(header[3:5]))
+	totalLen := 5 + recordLen
+	if totalLen > tcpRelayPeekSize {
+		return nil, fmt.Errorf("TLS ClientHello too large: %d bytes", totalLen)
+	}
+
+	return clientReader.Peek(totalLen)
 }
 
 // handleHTTP rewrites plain HTTP requests to absolute-URL proxy form, forwards

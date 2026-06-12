@@ -92,10 +92,10 @@ func (h *ConnectHandler) HandleTunnel(w http.ResponseWriter, r *http.Request) {
 	clientConn.Write([]byte("HTTP/1.1 200 Connection Established\r\nProxy-agent: echo\r\n\r\n"))
 
 	// If not intercepting (no plugin match and not port 443), just tunnel directly
-		if !should_intercept {
-			h.tunnelDirect(clientConn, hostname, port)
-			return
-		}
+	if !should_intercept {
+		h.tunnelDirect(clientConn, hostname, port)
+		return
+	}
 
 	if len(matched_plugins) > 0 {
 		log.Printf("[CONNECT] Intercepting %s:%s (%d plugin(s) matched)", hostname, port, len(matched_plugins))
@@ -121,7 +121,7 @@ func (h *ConnectHandler) HandleTunnel(w http.ResponseWriter, r *http.Request) {
 	} else if len(matched_plugins) > 0 {
 		// Non-TLS with matching plugins: handle HTTP locally (no target DNS needed)
 		log.Printf("[CONNECT] Plain HTTP for %s:%s with %d plugin(s), handling locally", hostname, port, len(matched_plugins))
-		h.handlePlainHTTPTunnel(clientConn, bufClientConn, hostname, matched_plugins)
+		h.handlePlainHTTPTunnel(clientConn, bufClientConn, hostname, port)
 	} else {
 		// Not TLS, no plugins â€” tunnel directly
 		log.Printf("[Protocol Sniffing] Non-TLS traffic for %s. Bypassing MITM.", hostname)
@@ -288,54 +288,112 @@ func (h *ConnectHandler) handleMitmRequest(w http.ResponseWriter, r *http.Reques
 
 // handlePlainHTTPTunnel handles a non-TLS HTTP request arriving through a CONNECT tunnel.
 // This is used when TUN routes plain HTTP (port 80) traffic to the proxy via CONNECT.
-// Instead of tunneling to the target (which may not exist in DNS), we parse the HTTP
-// request locally and serve mock responses directly.
-func (h *ConnectHandler) handlePlainHTTPTunnel(clientConn net.Conn, bufClientConn *bufio.Reader, hostname string, plugins []*Plugin) {
-	req, err := http.ReadRequest(bufClientConn)
-	if err != nil {
-		log.Printf("[Plain HTTP] Failed to read request: %v", err)
-		clientConn.Close()
-		return
+// Instead of tunneling raw bytes to the target, route the parsed request through
+// HTTPHandler so normal plugin request/response hooks run for port 80 too.
+func (h *ConnectHandler) handlePlainHTTPTunnel(clientConn net.Conn, bufClientConn *bufio.Reader, hostname, port string) {
+	defer clientConn.Close()
+
+	handler := h.HTTPHandler
+	if handler == nil {
+		handler = NewHTTPHandler(h.PluginLoader)
 	}
 
-	// Reconstruct URL: the request line is "GET /path HTTP/1.1", fill in scheme + host
-	req.URL.Scheme = "http"
-	req.URL.Host = hostname
-	if req.Host == "" {
-		req.Host = hostname
-	}
+	for {
+		req, err := http.ReadRequest(bufClientConn)
+		if err != nil {
+			if err != io.EOF {
+				log.Printf("[Plain HTTP] Failed to read request: %v", err)
+			}
+			return
+		}
 
-	log.Printf("[Plain HTTP] %s %s (Host: %s)", req.Method, req.URL.String(), req.Host)
-
-	// Run plugin OnRequest hooks
-	ctx := &Context{Req: req}
-	for _, p := range plugins {
-		if p.OnRequest != nil {
-			p.OnRequest(ctx)
-			if mockResp := ctx.GetMockResponse(); mockResp != nil {
-				log.Printf("[Plain HTTP] Mock response for %s", hostname)
-				h.writeMockToConn(clientConn, req, mockResp)
-				clientConn.Close()
-				return
+		if req.URL.Scheme == "" {
+			req.URL.Scheme = "http"
+		}
+		if req.URL.Host == "" {
+			req.URL.Host = req.Host
+			if req.URL.Host == "" {
+				req.URL.Host = hostWithOptionalPort(hostname, port, "80")
 			}
 		}
-	}
+		if req.Host == "" {
+			req.Host = req.URL.Host
+		}
 
-	// No mock â€” tunnel to real target
-	targetConn, err := net.DialTimeout("tcp", net.JoinHostPort(hostname, req.URL.Port()), 10*time.Second)
-	if err != nil {
-		log.Printf("[Plain HTTP] Tunnel to %s failed: %v", hostname, err)
-		clientConn.Close()
+		log.Printf("[Plain HTTP] %s %s (Host: %s)", req.Method, req.URL.String(), req.Host)
+
+		recorder := newBufferedResponseWriter()
+		handler.HandleRequest(recorder, req)
+		resp := recorder.Response(req)
+		resp.Close = req.Close
+
+		if err := resp.Write(clientConn); err != nil {
+			log.Printf("[Plain HTTP] Write response: %v", err)
+			return
+		}
+		resp.Body.Close()
+
+		if req.Close || resp.Close {
+			return
+		}
+	}
+}
+
+func hostWithOptionalPort(hostname, port, defaultPort string) string {
+	if port == "" || port == defaultPort {
+		return hostname
+	}
+	return net.JoinHostPort(hostname, port)
+}
+
+type bufferedResponseWriter struct {
+	code   int
+	header http.Header
+	body   bytes.Buffer
+}
+
+func newBufferedResponseWriter() *bufferedResponseWriter {
+	return &bufferedResponseWriter{
+		header: make(http.Header),
+	}
+}
+
+func (w *bufferedResponseWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *bufferedResponseWriter) WriteHeader(statusCode int) {
+	if w.code != 0 {
 		return
 	}
+	w.code = statusCode
+}
 
-	go func() {
-		defer targetConn.Close()
-		defer clientConn.Close()
-		req.Write(targetConn)
-		io.Copy(targetConn, bufClientConn)
-	}()
-	transfer(clientConn, targetConn)
+func (w *bufferedResponseWriter) Write(p []byte) (int, error) {
+	if w.code == 0 {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.body.Write(p)
+}
+
+func (w *bufferedResponseWriter) Response(req *http.Request) *http.Response {
+	statusCode := w.code
+	if statusCode == 0 {
+		statusCode = http.StatusOK
+	}
+	header := w.header.Clone()
+	header.Set("Content-Length", fmt.Sprintf("%d", w.body.Len()))
+	return &http.Response{
+		Status:        fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
+		StatusCode:    statusCode,
+		Proto:         "HTTP/1.1",
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		Header:        header,
+		Body:          io.NopCloser(bytes.NewReader(w.body.Bytes())),
+		ContentLength: int64(w.body.Len()),
+		Request:       req,
+	}
 }
 
 // writeMockToConn writes a mock HTTP response to a raw connection.

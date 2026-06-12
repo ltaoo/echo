@@ -1,6 +1,7 @@
 .DS_Store
 *.exe
 .env
+.gocache
 
 _example/*.json
 _example/work.go
