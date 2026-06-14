@@ -94,14 +94,17 @@ func (s *Server) Start() error {
 
 	// 2. Build TUN options
 	tunOptions := tun.Options{
-		Name:             s.cfg.Inbound.TunName,
-		Inet4Address:     []netip.Prefix{netip.MustParsePrefix(s.cfg.Inbound.Inet4Address)},
-		MTU:              s.cfg.Inbound.MTU,
-		AutoRoute:        s.cfg.Inbound.AutoRoute,
-		StrictRoute:      s.cfg.Inbound.StrictRoute,
-		InterfaceMonitor: s.ifaceMonitor,
-		InterfaceFinder:  s.ifaceFinder,
-		Logger:           s.log,
+		Name:                                  s.cfg.Inbound.TunName,
+		Inet4Address:                          []netip.Prefix{netip.MustParsePrefix(s.cfg.Inbound.Inet4Address)},
+		MTU:                                   s.cfg.Inbound.MTU,
+		AutoRoute:                             s.cfg.Inbound.AutoRoute,
+		StrictRoute:                           s.cfg.Inbound.StrictRoute,
+		IPRoute2TableIndex:                    tun.DefaultIPRoute2TableIndex,
+		IPRoute2RuleIndex:                     tun.DefaultIPRoute2RuleIndex,
+		IPRoute2AutoRedirectFallbackRuleIndex: tun.DefaultIPRoute2AutoRedirectFallbackRuleIndex,
+		InterfaceMonitor:                      s.ifaceMonitor,
+		InterfaceFinder:                       s.ifaceFinder,
+		Logger:                                s.log,
 	}
 
 	tunName := tunOptions.Name
