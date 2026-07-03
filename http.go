@@ -128,13 +128,15 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
+			targetAuthority := selected_target.GetAuthority(targetProtocol)
+
 			// Construct target URL for logging
-			targetURL := targetProtocol + "://" + selected_target.GetHostPort() + path
+			targetURL := targetProtocol + "://" + targetAuthority + path
 			log.Printf("[PLUGIN] Forwarding %s -> %s", hostname, targetURL)
 
 			r.URL.Scheme = targetProtocol
-			r.URL.Host = selected_target.GetHostPort()
-			r.Host = selected_target.GetHostPort()
+			r.URL.Host = targetAuthority
+			r.Host = targetAuthority
 		}
 	}
 

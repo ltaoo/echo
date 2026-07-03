@@ -159,6 +159,29 @@ func (t *TargetConfig) GetHostPort() string {
 	return fmt.Sprintf("%s:%d", t.Host, t.Port)
 }
 
+// GetAuthority returns the HTTP authority for the target.
+// Default ports are omitted so same-host HTTPS rewrites preserve the normal Host form.
+func (t *TargetConfig) GetAuthority(protocol string) string {
+	if t == nil {
+		return ""
+	}
+	if t.Port <= 0 {
+		return t.Host
+	}
+	if protocol == "" {
+		protocol = t.Protocol
+	}
+	defaultPort := 80
+	switch protocol {
+	case "https", "wss":
+		defaultPort = 443
+	}
+	if t.Port == defaultPort {
+		return t.Host
+	}
+	return t.GetHostPort()
+}
+
 // GetDefaultPort returns the default port for the protocol
 func (t *TargetConfig) GetDefaultPort() int {
 	if t.Port > 0 {

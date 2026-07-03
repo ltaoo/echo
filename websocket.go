@@ -54,7 +54,6 @@ func (h *WebSocketHandler) HandleUpgrade(w http.ResponseWriter, r *http.Request,
 			}
 		}
 		if selected_target != nil {
-			targetHost = selected_target.GetHostPort()
 			targetProtocol = selected_target.Protocol
 			targetPath = path
 
@@ -71,6 +70,7 @@ func (h *WebSocketHandler) HandleUpgrade(w http.ResponseWriter, r *http.Request,
 			} else if targetProtocol == "https" {
 				targetProtocol = "wss"
 			}
+			targetHost = selected_target.GetAuthority(targetProtocol)
 			log.Printf("[PLUGIN WS] Forwarding %s -> %s://%s%s", hostname, targetProtocol, targetHost, targetPath)
 		}
 	}
