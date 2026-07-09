@@ -110,7 +110,38 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 				p.OnRequest(ctx)
 				if mockResp := ctx.GetMockResponse(); mockResp != nil {
 					log.Printf("[PLUGIN] Returning direct response for %s", path)
-					h.sendMockResponse(w, mockResp)
+					// Build an http.Response so OnResponse hooks can modify it
+					var mockBody []byte
+					switch v := mockResp.Body.(type) {
+					case string:
+						mockBody = []byte(v)
+					case []byte:
+						mockBody = v
+					}
+					statusCode := mockResp.StatusCode
+					if statusCode == 0 {
+						statusCode = http.StatusOK
+					}
+					resp := &http.Response{
+						StatusCode:    statusCode,
+						Header:        make(http.Header),
+						Body:          io.NopCloser(bytes.NewReader(mockBody)),
+						ContentLength: int64(len(mockBody)),
+					}
+					for k, v := range mockResp.Headers {
+						resp.Header.Set(k, v)
+					}
+					// Apply OnResponse hooks
+					ctx.Res = resp
+					for _, rp := range matched_plugins {
+						if rp.OnResponse != nil {
+							rp.OnResponse(ctx)
+						}
+					}
+					// Write final response
+					CopyHeader(w.Header(), resp.Header)
+					w.WriteHeader(resp.StatusCode)
+					io.Copy(w, resp.Body)
 					return
 				}
 			}
