@@ -3,6 +3,7 @@ package echo
 import (
 	"net"
 	"net/http"
+	"sort"
 	"strings"
 )
 
@@ -30,6 +31,17 @@ func (l *PluginLoader) Load(plugins []*Plugin) error {
 
 func (l *PluginLoader) AddPlugin(plugin *Plugin) {
 	l.plugins = append(l.plugins, plugin)
+}
+
+// SortByPriority sorts plugins by Priority DESC, then by len(Match) DESC
+// so that higher-priority plugins with longer match patterns are evaluated first.
+func (l *PluginLoader) SortByPriority() {
+	sort.SliceStable(l.plugins, func(i, j int) bool {
+		if l.plugins[i].Priority != l.plugins[j].Priority {
+			return l.plugins[i].Priority > l.plugins[j].Priority
+		}
+		return len(l.plugins[i].Match) > len(l.plugins[j].Match)
+	})
 }
 
 // GetPlugins returns all loaded plugins

@@ -244,6 +244,11 @@ func (e *Echo) AddPlugin(plugin *Plugin) {
 	e.pluginLoader.AddPlugin(plugin)
 }
 
+// SortPluginsByPriority sorts plugins by Priority DESC, then by len(Match) DESC.
+func (e *Echo) SortPluginsByPriority() {
+	e.pluginLoader.SortByPriority()
+}
+
 // ListenTCP starts a TCP relay on listenAddr that accepts raw TCP connections and
 // forwards them to echoAddr using HTTP proxy protocol.
 // The relay infers the target destination from TLS SNI or HTTP Host header.

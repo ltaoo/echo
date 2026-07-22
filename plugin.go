@@ -15,6 +15,7 @@ type Plugin struct {
 	MockResponse *MockResponse
 	Bypass       bool // If true, skip MITM and tunnel directly
 	Disabled     bool // If true, the plugin is ignored by matchers
+	Priority     int  // Higher priority plugins are evaluated first
 
 	// Hooks
 	OnRequest  func(ctx *Context)
