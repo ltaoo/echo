@@ -87,6 +87,87 @@ func TestHandlePlainHTTPTunnelRunsResponseHooks(t *testing.T) {
 	<-done
 }
 
+func TestHandlePlainHTTPTunnelHandlesWebSocketUpgrade(t *testing.T) {
+	upstreamListener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer upstreamListener.Close()
+
+	upstreamAddr := upstreamListener.Addr().(*net.TCPAddr)
+	upstreamRequest := make(chan *http.Request, 1)
+	go func() {
+		conn, err := upstreamListener.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		req, err := http.ReadRequest(bufio.NewReader(conn))
+		if err != nil {
+			return
+		}
+		upstreamRequest <- req
+		_, _ = io.WriteString(conn,
+			"HTTP/1.1 101 Switching Protocols\r\n"+
+				"Connection: Upgrade\r\n"+
+				"Upgrade: websocket\r\n\r\n")
+		_, _ = io.Copy(io.Discard, conn)
+	}()
+
+	loader, err := NewPluginLoader([]*Plugin{{
+		Match: "http://127.0.0.1:8080/*",
+		Target: &TargetConfig{
+			Protocol: "ws",
+			Host:     upstreamAddr.IP.String(),
+			Port:     upstreamAddr.Port,
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	connectHandler := &ConnectHandler{PluginLoader: loader}
+
+	clientConn, serverConn := net.Pipe()
+	deadline := time.Now().Add(5 * time.Second)
+	_ = clientConn.SetDeadline(deadline)
+	_ = serverConn.SetDeadline(deadline)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		connectHandler.handlePlainHTTPTunnel(serverConn, bufio.NewReader(serverConn), "127.0.0.1", "8080")
+	}()
+
+	if _, err := io.WriteString(clientConn,
+		"GET /c_webskt/ HTTP/1.1\r\n"+
+			"Host: 127.0.0.1:8080\r\n"+
+			"Connection: Upgrade\r\n"+
+			"Upgrade: websocket\r\n"+
+			"Sec-WebSocket-Version: 13\r\n"+
+			"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := http.ReadResponse(bufio.NewReader(clientConn), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusSwitchingProtocols {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, http.StatusSwitchingProtocols)
+	}
+
+	select {
+	case req := <-upstreamRequest:
+		if req.URL.Path != "/c_webskt/" {
+			t.Fatalf("upstream path = %q", req.URL.Path)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for upstream WebSocket request")
+	}
+
+	_ = clientConn.Close()
+	<-done
+}
+
 func servePipeHTTPResponse(conn net.Conn, body string) {
 	defer conn.Close()
 

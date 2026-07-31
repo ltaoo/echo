@@ -8,6 +8,8 @@ A simplest implementation of a proxy server in Go, inspired by [Whistle](https:/
 - **HTTPS/TCP Tunneling**: Supports `CONNECT` method for HTTPS and generic TCP tunneling.
 - **WebSocket Support**: Supports WebSocket upgrades (hijacking) and tunneling.
 - **Plugin System**: Flexible plugin system to modify requests and responses.
+- **CLodop Relay**: Transparently forwards TCP traffic from port `8080` to the
+  local CLodop service at `127.0.0.1:8000`.
 
 ## Installation
 
@@ -136,6 +138,19 @@ echo_proxy, err := echo.NewEchoWithOptions(certFile, keyFile, &echo.Options{
 3. Traffic flow: App → Other Proxy → Echo → UpstreamProxy → Target
 
 This allows Echo to coexist with VPN clients, Clash, V2Ray, or other proxy tools.
+
+## CLodop Relay
+
+The dedicated executable performs transparent TCP forwarding. It does not
+parse or modify HTTP or WebSocket traffic:
+
+```bash
+clodop-relay.exe
+```
+
+It listens on `0.0.0.0:8080` and forwards every byte to
+`127.0.0.1:8000`. The addresses can be changed with `-listen HOST:PORT` and
+`-target HOST:PORT`.
 
 ## Implementation Details
 

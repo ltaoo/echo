@@ -322,6 +322,17 @@ func (h *ConnectHandler) handlePlainHTTPTunnel(clientConn net.Conn, bufClientCon
 
 		log.Printf("[Plain HTTP] %s %s (Host: %s)", req.Method, req.URL.String(), req.Host)
 
+		if IsWebSocketRequest(req) {
+			log.Printf("[Plain HTTP] Detected WebSocket upgrade for %s:%s", hostname, port)
+			wsHandler := &WebSocketHandler{PluginLoader: h.PluginLoader}
+			wsHandler.HandleUpgrade(&plainTunnelResponseWriter{
+				conn:   clientConn,
+				reader: bufClientConn,
+				header: make(http.Header),
+			}, req, false)
+			return
+		}
+
 		recorder := newBufferedResponseWriter()
 		handler.HandleRequest(recorder, req)
 		resp := recorder.Response(req)
@@ -337,6 +348,38 @@ func (h *ConnectHandler) handlePlainHTTPTunnel(clientConn net.Conn, bufClientCon
 			return
 		}
 	}
+}
+
+type plainTunnelResponseWriter struct {
+	conn        net.Conn
+	reader      *bufio.Reader
+	header      http.Header
+	wroteHeader bool
+}
+
+func (w *plainTunnelResponseWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *plainTunnelResponseWriter) WriteHeader(statusCode int) {
+	if w.wroteHeader {
+		return
+	}
+	w.wroteHeader = true
+	_, _ = fmt.Fprintf(w.conn, "HTTP/1.1 %d %s\r\n", statusCode, http.StatusText(statusCode))
+	_ = w.header.Write(w.conn)
+	_, _ = io.WriteString(w.conn, "\r\n")
+}
+
+func (w *plainTunnelResponseWriter) Write(p []byte) (int, error) {
+	if !w.wroteHeader {
+		w.WriteHeader(http.StatusOK)
+	}
+	return w.conn.Write(p)
+}
+
+func (w *plainTunnelResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return w.conn, bufio.NewReadWriter(w.reader, bufio.NewWriter(w.conn)), nil
 }
 
 func hostWithOptionalPort(hostname, port, defaultPort string) string {
