@@ -141,7 +141,7 @@ type TargetConfig struct {
 type MockResponse struct {
 	StatusCode int
 	Headers    map[string]string
-	Body       interface{} // string or []byte
+	Body       interface{} // string, []byte, io.Reader, or io.ReadCloser
 }
 
 // GetTargetURL returns the full target URL for forwarding

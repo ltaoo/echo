@@ -4,14 +4,60 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestMitmServerUsesHTTP11ForDownstreamConnections(t *testing.T) {
+	cert_file, err := os.ReadFile("_example/SunnyRoot.cer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	key_file, err := os.ReadFile("_example/private.key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	echo_proxy, err := NewEcho(cert_file, key_file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	echo_proxy.AddPlugin(&Plugin{
+		Match: "video.example.test",
+		OnRequest: func(ctx *Context) {
+			ctx.Mock(http.StatusOK, map[string]string{"Content-Type": "video/mp4"}, []byte("video"))
+		},
+	})
+	proxy_server := httptest.NewServer(echo_proxy)
+	defer proxy_server.Close()
+
+	proxy_url, err := url.Parse(proxy_server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Transport: &http.Transport{
+		Proxy:             http.ProxyURL(proxy_url),
+		ForceAttemptHTTP2: true,
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+	}}
+	response, err := client.Get("https://video.example.test/segment.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.ProtoMajor != 1 || response.ProtoMinor != 1 {
+		t.Fatalf("downstream protocol = %s, want HTTP/1.1", response.Proto)
+	}
+}
 
 func TestHandlePlainHTTPTunnelRunsResponseHooks(t *testing.T) {
 	var requestLog bytes.Buffer

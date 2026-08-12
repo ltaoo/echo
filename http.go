@@ -8,6 +8,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -110,27 +112,8 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 				p.OnRequest(ctx)
 				if mockResp := ctx.GetMockResponse(); mockResp != nil {
 					log.Printf("[PLUGIN] Returning direct response for %s", path)
-					// Build an http.Response so OnResponse hooks can modify it
-					var mockBody []byte
-					switch v := mockResp.Body.(type) {
-					case string:
-						mockBody = []byte(v)
-					case []byte:
-						mockBody = v
-					}
-					statusCode := mockResp.StatusCode
-					if statusCode == 0 {
-						statusCode = http.StatusOK
-					}
-					resp := &http.Response{
-						StatusCode:    statusCode,
-						Header:        make(http.Header),
-						Body:          io.NopCloser(bytes.NewReader(mockBody)),
-						ContentLength: int64(len(mockBody)),
-					}
-					for k, v := range mockResp.Headers {
-						resp.Header.Set(k, v)
-					}
+					resp := new_mock_http_response(mockResp)
+					defer resp.Body.Close()
 					// Apply OnResponse hooks
 					ctx.Res = resp
 					for _, rp := range matched_plugins {
@@ -238,6 +221,46 @@ func (h *HTTPHandler) HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Copy response body
 	io.Copy(w, resp.Body)
+}
+
+func new_mock_http_response(mock_response *MockResponse) *http.Response {
+	status_code := mock_response.StatusCode
+	if status_code == 0 {
+		status_code = http.StatusOK
+	}
+	header := make(http.Header)
+	for key, value := range mock_response.Headers {
+		header.Set(key, value)
+	}
+
+	var body io.ReadCloser
+	content_length := int64(-1)
+	switch value := mock_response.Body.(type) {
+	case string:
+		body = io.NopCloser(strings.NewReader(value))
+		content_length = int64(len(value))
+	case []byte:
+		body = io.NopCloser(bytes.NewReader(value))
+		content_length = int64(len(value))
+	case io.ReadCloser:
+		body = value
+	case io.Reader:
+		body = io.NopCloser(value)
+	default:
+		body = http.NoBody
+		content_length = 0
+	}
+	if header_length := header.Get("Content-Length"); header_length != "" {
+		if parsed_length, err := strconv.ParseInt(header_length, 10, 64); err == nil {
+			content_length = parsed_length
+		}
+	}
+	return &http.Response{
+		StatusCode:    status_code,
+		Header:        header,
+		Body:          body,
+		ContentLength: content_length,
+	}
 }
 
 // forwardDirect forwards requests directly without MITM for sensitive services

@@ -253,6 +253,10 @@ func (h *ConnectHandler) getMitmServer(hostname string) (*MitmServer, error) {
 		TLSConfig: &tls.Config{
 			GetCertificate: h.CertManager.GetCertificateFunc(),
 		},
+		// The outbound transport intentionally uses HTTP/1.1. Advertising HTTP/2
+		// here would turn the proxy into an HTTP/2-to-HTTP/1.1 translator and can
+		// break media clients that depend on the origin's streaming behavior.
+		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 	}
 
 	go server.ServeTLS(listener, "", "")
