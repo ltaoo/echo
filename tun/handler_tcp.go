@@ -68,6 +68,11 @@ func (h *tunHandler) NewConnectionEx(
 		h.logger.Info(fmt.Sprintf("[tcp] %v -> %v | %s | %s", src, dst, processPath, outboundTag))
 	}
 
+	// Optional raw first-packet dump, before any routing or dialing takes place.
+	if h.shouldDump(processPath) {
+		h.dumpFirstPacket(processPath, src, dst, sniffedDomain, outboundTag, peeked)
+	}
+
 	// 4. Dial outbound
 	ob, ok := h.outbounds[outboundTag]
 	if !ok {

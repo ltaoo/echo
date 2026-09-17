@@ -13,6 +13,17 @@ type TunConfig struct {
 	Outbounds []OutboundConfig `json:"outbounds"`
 	Route     RouteConfig      `json:"route"`
 	DNS       DNSConfig        `json:"dns"`
+	Dump      DumpConfig       `json:"dump"`
+}
+
+// DumpConfig controls raw first-packet logging. It exists to answer a single
+// question about an opaque transport: what does it actually put on the wire?
+// Seeing the leading bytes is usually enough to tell a standard TLS handshake
+// apart from a length-prefixed, pinned-key handshake.
+type DumpConfig struct {
+	Enabled bool     `json:"enabled"`
+	Bytes   int      `json:"bytes,omitempty"`   // max payload bytes to log per connection; 0 = default
+	Process []string `json:"process,omitempty"` // process basenames to dump; empty = all processes
 }
 
 // InboundConfig defines the TUN device settings.

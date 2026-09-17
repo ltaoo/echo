@@ -9,6 +9,8 @@
 //	go run ./_example/wxchannels.go -default-interface "Ethernet 2"
 //	go run ./_example/wxchannels.go -upstream http://127.0.0.1:7890
 //	go run ./_example/wxchannels.go -c config.json          # 从文件加载 TUN 配置
+//	go run ./_example/wxchannels.go -dump                   # 打印 WeChat 连接的首包 hex
+//	go run ./_example/wxchannels.go -dump -quiet            # 只看 [dump]/[info]，屏蔽每条 DNS 的 debug 日志
 //
 // 配置文件示例 (config.json):
 //
@@ -34,7 +36,8 @@
 //	    ],
 //	    "final": "direct"
 //	  },
-//	  "dns": {"fake_dns": true, "fake_dns_range": "198.18.0.0/15"}
+//	  "dns": {"fake_dns": true, "fake_dns_range": "198.18.0.0/15"},
+//	  "dump": {"enabled": true, "bytes": 256, "process": ["WeChat", "WeChat.exe"]}
 //	}
 package main
 
@@ -46,6 +49,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/ltaoo/echo"
@@ -63,7 +67,13 @@ func main() {
 	upstreamProxy := flag.String("upstream", "", "upstream proxy, e.g. http://127.0.0.1:7890 or socks5://127.0.0.1:1080")
 	proxyPort := flag.Int("proxy-port", 8899, "local echo HTTP proxy port")
 	defaultInterface := flag.String("default-interface", "", "bind TUN outbound traffic to this Windows interface, e.g. Ethernet 2")
+	dumpFirstPacket := flag.Bool("dump", false, "log the first packet (hex) of WeChat connections to identify the transport")
+	quiet := flag.Bool("quiet", false, "suppress per-query debug logs; keeps [info], [dump] and [error]")
 	flag.Parse()
+
+	if *quiet {
+		tun.SetLogLevel(tun.LevelInfo)
+	}
 
 	// 1. Load or build TUN config
 	var cfg *tun.TunConfig
@@ -80,8 +90,30 @@ func main() {
 		fmt.Println("Using business-compatible TUN config")
 	}
 	setProxyOutboundPort(cfg, *proxyPort)
+
+	// -dump turns on first-packet logging for the WeChat processes. A config file
+	// that already sets "dump" wins, so the flag only fills in the default.
+	if *dumpFirstPacket && !cfg.Dump.Enabled {
+		cfg.Dump = tun.DumpConfig{
+			Enabled: true,
+			Bytes:   256,
+			// Basenames carry the platform: "WeChat" on macOS,
+			// "WeChat.exe" on Windows. Listing both keeps the flag useful either way.
+			Process: []string{
+				"WeChat",
+				"WeChat.exe",
+				"WeChatAppEx",
+				"WeChatAppEx.exe",
+				"Weixin.exe",
+			},
+		}
+	}
+
 	fmt.Printf("  outbounds: %d, rules: %d, final: %s\n",
 		len(cfg.Outbounds), len(cfg.Route.Rules), cfg.Route.Final)
+	if cfg.Dump.Enabled {
+		fmt.Printf("  dump:       on (%d bytes, process=%v)\n", cfg.Dump.Bytes, cfg.Dump.Process)
+	}
 	effectiveDefaultInterface := cfg.Route.DefaultInterface
 	if *defaultInterface != "" {
 		effectiveDefaultInterface = *defaultInterface
@@ -89,6 +121,9 @@ func main() {
 	if effectiveDefaultInterface != "" {
 		fmt.Printf("  default_interface: %s\n", effectiveDefaultInterface)
 	}
+	// Echo the guard list so a mismatch between the rule and the running binary
+	// is visible up front instead of as an unexplained loop in the traffic log.
+	fmt.Printf("  direct guard: %v\n", selfProcessNames())
 
 	// 2. Create Echo with TUN enabled.
 	//    TUN 工作流程:
@@ -156,26 +191,21 @@ func businessTunConfig(proxyPort int) *tun.TunConfig {
 		Rules: []tun.RuleConfig{
 			// Highest priority: self-process direct to avoid loopback.
 			{
-				ProcessName: []string{
-					"wx_video_download",
-					"wx_video_download.exe",
-					"wx_channel",
-					"wx_channel.exe",
-					"go",
-					"go.exe",
-					"main",
-					"main.exe",
-				},
-				Outbound: "direct",
+				ProcessName: selfProcessNames(),
+				Outbound:    "direct",
 			},
 			// WeChat processes through proxy.
+			// Matching is an exact comparison against the executable basename
+			// (see matchRoute in tun/router.go), so Windows names must keep ".exe".
 			{
 				ProcessName: []string{
 					"WeChat",
+					"WeChat.exe",
 					"WeChatAppEx",
 					"WeChatAppEx.exe",
 					"Weixin.exe",
 					"WeChatAppEx Helper",
+					"WeChatAppEx Helper.exe",
 				},
 				Outbound: "proxy",
 			},
@@ -188,6 +218,27 @@ func businessTunConfig(proxyPort int) *tun.TunConfig {
 		Final: "direct",
 	}
 	return cfg
+}
+
+// selfProcessNames returns the executable basenames this forwarder may run
+// under. The running binary has to route direct: a proxy rule would send the
+// process's own outbound connections to the local echo proxy, and echo dials
+// them with an unbound net.Dial, which re-enters the TUN device. That closes a
+// loop and floods the log with the same connection over and over.
+//
+// os.Executable covers every launch form ("go run" yields wxchannels under a
+// temp go-build dir, "go build -o" yields the chosen name), so the guard holds
+// without hardcoding whatever the binary happens to be called.
+func selfProcessNames() []string {
+	names := []string{
+		"wx_video_download", "wx_video_download.exe",
+		"wx_channel", "wx_channel.exe",
+		"go", "go.exe", "main", "main.exe",
+	}
+	if exe, err := os.Executable(); err == nil {
+		names = append(names, filepath.Base(exe))
+	}
+	return names
 }
 
 func setProxyOutboundPort(cfg *tun.TunConfig, proxyPort int) {

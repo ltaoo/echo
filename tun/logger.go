@@ -8,6 +8,19 @@ import (
 
 var logWriter io.Writer = os.Stderr
 
+// minLevel drops messages below it. Trace and Debug are per-query chatter (one
+// line per DNS lookup), which buries anything worth reading; they stay opt-in.
+type Level int
+
+const (
+	LevelDebug Level = iota
+	LevelInfo
+)
+
+var minLevel = LevelDebug
+
+func SetLogLevel(level Level) { minLevel = level }
+
 func SetLogEnabled(enabled bool) {
 	if enabled {
 		logWriter = os.Stderr
@@ -19,10 +32,16 @@ func SetLogEnabled(enabled bool) {
 type stdLogger struct{}
 
 func (l stdLogger) Trace(args ...any) {
+	if minLevel > LevelDebug {
+		return
+	}
 	fmt.Fprint(logWriter, "[trace] ")
 	fmt.Fprintln(logWriter, args...)
 }
 func (l stdLogger) Debug(args ...any) {
+	if minLevel > LevelDebug {
+		return
+	}
 	fmt.Fprint(logWriter, "[debug] ")
 	fmt.Fprintln(logWriter, args...)
 }
